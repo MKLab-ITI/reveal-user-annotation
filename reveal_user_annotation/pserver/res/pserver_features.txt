@@ -1,0 +1,4 @@
+WP2integration.influence
+WP2integration.role
+WP2integration.topic
+WP2integration.type

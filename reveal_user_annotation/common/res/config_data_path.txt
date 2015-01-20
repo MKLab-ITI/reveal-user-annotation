@@ -1,0 +1,1 @@
+DATA_PATH=/usr/path/to/local/disk/data

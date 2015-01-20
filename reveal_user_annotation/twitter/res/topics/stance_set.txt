@@ -1,0 +1,9 @@
+conservative
+democrat
+libertarian
+feminist
+christian
+islamic
+buddhist
+judaic
+atheism

@@ -1,0 +1,29 @@
+# Local disk data folder.
+# DATA_PATH: Folder path.
+DATA_PATH=/usr/path/to/local/disk/data
+
+# MongoDB related paths.
+# mongod_path: The path of the local Mongo daemon executable.
+# dbpath: The data folder for the local MongoDB (as it should be in the mongodb.config file).
+mongod_path=/usr/bin/mongod
+dbpath=/home/USER_NAME/Documents/MongoDB/
+
+# PServer configuration.
+# PSERVER_HOST: The http address where the project PServer instance is located.
+# ADMIN_PANEL_USER_NAME: Administration panel user name.
+# ADMIN_PANEL_PASS: Administration panel password.
+# CLIENT_NAME: The name of the client to store the data.
+# CLIENT_PASS: The client password.
+PSERVER_HOST=http://HOST.NAME.gr:1111/
+ADMIN_PANEL_USER_NAME=ENTER_YOUR_USER_NAME
+ADMIN_PANEL_PASS=ENTER_YOUR_PASSWORD
+CLIENT_NAME=ENTER_YOUR_CLIENT_NAME
+CLIENT_PASS=ENTER_YOUR_PASSWORD
+
+# Twitter authentication credentials.
+# APP_KEY: Twitter app key (https://apps.twitter.com/).
+# APP_SECRET: Twitter app secret (https://apps.twitter.com/).
+# SCREEN_NAME: The twitter developer account screen name.
+APP_KEY=ENTER_YOUR_APP_KEY
+APP_SECRET=ENTER_YOUR_APP_SECRET
+SCREEN_NAME=ENTER_YOUR_USER_SCREEN_NAME

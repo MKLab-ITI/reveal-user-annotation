@@ -1,0 +1,1 @@
+mongod_path=/usr/bin/mongod

@@ -1,0 +1,11 @@
+motor_sports
+winter_sports
+american_football
+baseball
+football
+rugby
+cyclism
+mma
+golf
+basketball
+tennis
