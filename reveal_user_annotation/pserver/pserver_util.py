@@ -13,10 +13,4 @@ def get_configuration_details():
     for file_row in file_row_gen:
         configuration_dictionary[file_row[0]] = file_row[1]
 
-    pserver_host = configuration_dictionary["PSERVER_HOST"]
-    admin_panel_user_name = configuration_dictionary["ADMIN_PANEL_USER_NAME"]
-    admin_panel_pass = configuration_dictionary["ADMIN_PANEL_PASS"]
-    client_name = configuration_dictionary["CLIENT_NAME"]
-    client_pass = configuration_dictionary["CLIENT_PASS"]
-
-    return pserver_host, admin_panel_user_name, admin_panel_pass, client_name, client_pass
+    return configuration_dictionary

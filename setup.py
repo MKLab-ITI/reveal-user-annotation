@@ -10,7 +10,7 @@ def readme():
         return f.read()
 
 # Setup configuration according to config.txt file.
-configure_package()
+# configure_package()  # Best if this is done after installation.
 
 setup(
     name='reveal-user-annotation',
@@ -46,7 +46,7 @@ setup(
     keywords="online-social-network user-annotation twitter-list-crowdsourcing Reveal-FP7",
     entry_points={
         'console_scripts': ['store_snow_tweets_in_mongo=reveal_user_annotation.entry_points.store_snow_tweets_in_mongo:main',
-                            'configure_package=reveal_user_annotation.entry_points.configure_package:main'],
+                            'configure_reveal_user_annotation=reveal_user_annotation.entry_points.configure_reveal_user_annotation:main'],
     },
     include_package_data=False,
     install_requires=[

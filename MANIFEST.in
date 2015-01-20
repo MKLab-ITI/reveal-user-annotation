@@ -1,5 +1,4 @@
 include LICENCE
 include README.md
-include config.txt
 
 recursive-include reveal_user_annotation *.txt *.config
