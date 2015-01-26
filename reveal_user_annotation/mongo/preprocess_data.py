@@ -109,7 +109,7 @@ def get_collection_documents_generator(client, database_name, collection_name, s
             - collection_name: The name of the tweet collection as a string.
             - spec: A python dictionary that defines higher query arguments.
             - latest_n: The number of latest results we require from the mongo document collection.
-            - sort_key:
+            - sort_key: A field name according to which we will sort in ascending order.
 
     Yields: - document: A document in python dictionary (json) format.
     """
@@ -117,7 +117,7 @@ def get_collection_documents_generator(client, database_name, collection_name, s
     collection = mongo_database[collection_name]
 
     if latest_n is not None:
-        cursor = collection.find(spec=spec, skip=collection.count() - latest_n).sort({sort_key: ASCENDING})
+        cursor = collection.find(spec=spec, skip=collection.count() - latest_n, sort={sort_key: ASCENDING})
     else:
         cursor = collection.find(spec=spec).sort({sort_key: ASCENDING})
 
@@ -216,6 +216,7 @@ def extract_graphs_and_lemmas_from_tweets(tweet_generator):
                     append_user_lemma_matrix_data(multiplicity)
 
                 # Check if this tweet was in reply to another user.
+                # This may also exist in the mentioned field.
                 in_reply_to_user_id = original_tweet["in_reply_to_user_id"]
                 if in_reply_to_user_id is not None:
                     id_to_name[in_reply_to_user_id] = original_tweet["in_reply_to_user_screen_name"]
@@ -224,14 +225,23 @@ def extract_graphs_and_lemmas_from_tweets(tweet_generator):
                     append_mention_graph_row(original_tweet_user_id)
                     append_mention_graph_col(in_reply_to_user_id)
 
-                # Check if this tweet has mentions to other users.
-                for user_mention in original_tweet["entities"]["user_mentions"]:
-                    mentioned_user_id = user_mention["id"]
-                    id_to_name[mentioned_user_id] = user_mention["screen_name"]
-                    append_user_id(mentioned_user_id)
+                    for user_mention in original_tweet["entities"]["user_mentions"]:
+                        mentioned_user_id = user_mention["id"]
+                        if in_reply_to_user_id != mentioned_user_id:
+                            id_to_name[mentioned_user_id] = user_mention["screen_name"]
+                            append_user_id(mentioned_user_id)
 
-                    append_mention_graph_row(original_tweet_user_id)
-                    append_mention_graph_col(mentioned_user_id)
+                            append_mention_graph_row(original_tweet_user_id)
+                            append_mention_graph_col(mentioned_user_id)
+                else:
+                    # Check if this tweet has mentions to other users.
+                    for user_mention in original_tweet["entities"]["user_mentions"]:
+                        mentioned_user_id = user_mention["id"]
+                        id_to_name[mentioned_user_id] = user_mention["screen_name"]
+                        append_user_id(mentioned_user_id)
+
+                        append_mention_graph_row(original_tweet_user_id)
+                        append_mention_graph_col(mentioned_user_id)
             else:
                 tweet_id_set = list(tweet_id_set)
                 append_tweet_id = tweet_id_set.append
@@ -250,6 +260,7 @@ def extract_graphs_and_lemmas_from_tweets(tweet_generator):
                 append_user_lemma_matrix_data(multiplicity)
 
             # Check if this tweet was in reply to another user.
+            # This may also exist in the mentioned field.
             in_reply_to_user_id = tweet["in_reply_to_user_id"]
             if in_reply_to_user_id is not None:
                 id_to_name[in_reply_to_user_id] = tweet["in_reply_to_user_screen_name"]
@@ -258,14 +269,24 @@ def extract_graphs_and_lemmas_from_tweets(tweet_generator):
                 append_mention_graph_row(user_id)
                 append_mention_graph_col(in_reply_to_user_id)
 
-            # Check if this tweet has mentions to other users.
-            for user_mention in tweet["entities"]["user_mentions"]:
-                mentioned_user_id = user_mention["id"]
-                id_to_name[mentioned_user_id] = user_mention["screen_name"]
-                append_user_id(mentioned_user_id)
+                # Check if this tweet has mentions to other users.
+                for user_mention in tweet["entities"]["user_mentions"]:
+                    mentioned_user_id = user_mention["id"]
+                    if in_reply_to_user_id != mentioned_user_id:
+                        id_to_name[mentioned_user_id] = user_mention["screen_name"]
+                        append_user_id(mentioned_user_id)
 
-                append_mention_graph_row(user_id)
-                append_mention_graph_col(mentioned_user_id)
+                        append_mention_graph_row(user_id)
+                        append_mention_graph_col(mentioned_user_id)
+            else:
+                # Check if this tweet has mentions to other users.
+                for user_mention in tweet["entities"]["user_mentions"]:
+                    mentioned_user_id = user_mention["id"]
+                    id_to_name[mentioned_user_id] = user_mention["screen_name"]
+                    append_user_id(mentioned_user_id)
+
+                    append_mention_graph_row(user_id)
+                    append_mention_graph_col(mentioned_user_id)
 
     ####################################################################################################################
     # Final steps of preprocessing tweets.
