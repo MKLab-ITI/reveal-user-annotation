@@ -4,6 +4,7 @@ import numpy as np
 import scipy.sparse as sparse
 import networkx as nx
 import networkx.algorithms.components as nxalgcom
+from pymongo import ASCENDING
 
 from reveal_user_annotation.text.clean_text import clean_document, combine_word_list
 
@@ -99,19 +100,26 @@ def read_user_documents_generator(user_twitter_id_list, client, mongo_database_n
         yield user_twitter_id, twitter_list_gen
 
 
-def get_collection_documents_generator(client, database_name, collection_name):
+def get_collection_documents_generator(client, database_name, collection_name, spec, latest_n, sort_key):
     """
     This is a python generator that yields tweets stored in a mongodb collection.
 
     Inputs: - client: A pymongo MongoClient object.
             - database_name: The name of a Mongo database as a string.
             - collection_name: The name of the tweet collection as a string.
+            - spec: A python dictionary that defines higher query arguments.
+            - latest_n: The number of latest results we require from the mongo document collection.
+            - sort_key:
 
     Yields: - document: A document in python dictionary (json) format.
     """
     mongo_database = client[database_name]
     collection = mongo_database[collection_name]
-    cursor = collection.find()
+
+    if latest_n is not None:
+        cursor = collection.find(spec=spec, skip=collection.count() - latest_n).sort({sort_key: ASCENDING})
+    else:
+        cursor = collection.find(spec=spec).sort({sort_key: ASCENDING})
 
     for document in cursor:
         yield document
