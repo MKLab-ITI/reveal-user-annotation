@@ -2,15 +2,10 @@ __author__ = 'Georgios Rizos (georgerizos@iti.gr)'
 
 from distutils.core import setup
 
-from reveal_user_annotation.configure import configure_package
-
 
 def readme():
     with open("README.md") as f:
         return f.read()
-
-# Setup configuration according to config.txt file.
-# configure_package()  # Best if this is done after installation.
 
 setup(
     name='reveal-user-annotation',
@@ -46,7 +41,8 @@ setup(
     keywords="online-social-network user-annotation twitter-list-crowdsourcing Reveal-FP7",
     entry_points={
         'console_scripts': ['store_snow_tweets_in_mongo=reveal_user_annotation.entry_points.store_snow_tweets_in_mongo:main',
-                            'configure_reveal_user_annotation=reveal_user_annotation.entry_points.configure_reveal_user_annotation:main'],
+                            'configure_reveal_user_annotation=reveal_user_annotation.entry_points.configure_reveal_user_annotation:main',
+                            'extract_twitter_list_keywords=reveal_user_annotation.entry_points.extract_twitter_list_keywords:main'],
     },
     include_package_data=False,
     install_requires=[

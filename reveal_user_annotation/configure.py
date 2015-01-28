@@ -4,7 +4,7 @@ from reveal_user_annotation.common.config_package import get_package_path
 
 
 ########################################################################################################################
-# Setup configuration according to config.txt file.
+# Setup configuration according to config.ini file.
 ########################################################################################################################
 def configure_package():
     # Initialize configuration dictionary.
@@ -22,7 +22,7 @@ def configure_package():
     configuration_dictionary["SCREEN_NAME"] = None
 
     # Make configurations
-    with open(get_package_path() + "/config.txt") as f:
+    with open(get_package_path() + "/config.ini") as f:
         for file_row in f:
             if (file_row[0] != "#") and (file_row[0] is not None):
                 words = file_row.strip().split("=")
