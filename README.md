@@ -27,6 +27,8 @@ Reveal-FP7 Integration
 
 Configuration
 -----------
+The package is configured as soon as it is imported.
+
 The local resources and MongoDB configuration is mandatory for the usage of the reveal-user-annotation and [reveal-user-classification](https://github.com/MKLab-ITI/reveal-user-classification) packages.
 
 ### Edit config.txt
@@ -69,12 +71,6 @@ The relevant fields are `APP_KEY`, `APP_SECRET` and `SCREEN_NAME`.
 `SCREEN_NAME`:              The twitter developer account screen name.
 
 One must obviously have created a [Twitter app](https://apps.twitter.com/) and have a Twitter developer account.
-
-### Run configuration script
-
-To configure the package, one should run the package script/entry-point:
-
-    configure_reveal_user_annotation
 
 Notes
 -----
