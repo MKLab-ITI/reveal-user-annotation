@@ -117,7 +117,10 @@ def get_collection_documents_generator(client, database_name, collection_name, s
     collection = mongo_database[collection_name]
 
     if latest_n is not None:
-        cursor = collection.find(spec=spec, skip=collection.count() - latest_n, sort={sort_key: ASCENDING})
+        skip_n = collection.count() - latest_n
+        if collection.count() - latest_n < 0:
+            skip_n = 0
+        cursor = collection.find(spec=spec, skip=skip_n, sort={sort_key: ASCENDING})
     else:
         cursor = collection.find(spec=spec).sort({sort_key: ASCENDING})
 

@@ -52,16 +52,16 @@ def daemon_wrap(daemon_already_running, function_handle, *args, **kw):
     return function_result
 
 
-def establish_mongo_connection(mongodb_host_name, mongodb_port):
+def establish_mongo_connection(mongo_uri):
     """
     What it says on the tin.
 
-    Inputs: - mongodb_host_name: The name of the MongoDB host in string format.
-            - mongodb_port: The port of the MongoDB in integer format.
+    Inputs: - mongo_uri: A MongoDB URI.
 
     Output: - A MongoDB client.
     """
-    client = pymongo.MongoClient(mongodb_host_name, mongodb_port)
+
+    client = pymongo.MongoClient(mongo_uri)
     return client
 
 
