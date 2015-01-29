@@ -167,8 +167,8 @@ def clean_corpus_serial(corpus, lemmatizing="wordnet"):
         bag_of_words = combine_word_list(word_list)
         append_bag_of_words(bag_of_words)
 
-        for lemma, keywordbag in lemma_to_keywordbag.values():
-            for keyword, multiplicity in keywordbag.values():
+        for lemma, keywordbag in lemma_to_keywordbag.items():
+            for keyword, multiplicity in keywordbag.items():
                 lemma_to_keywordbag_total[lemma][keyword] += multiplicity
 
     return list_of_bags_of_words, lemma_to_keywordbag_total
@@ -201,8 +201,8 @@ def extract_bag_of_words_from_corpus_parallel(corpus, lemmatizing="wordnet"):
     # Reduce lemma to keyword maps to a single dictionary.
     lemma_to_keywordbag_total = defaultdict(defaultdict(int))
     for lemma_to_keywordbag in list_of_lemma_to_keywordset_maps:
-        for lemma, keywordbag in lemma_to_keywordbag.values():
-            for keyword, multiplicity in keywordbag.values():
+        for lemma, keywordbag in lemma_to_keywordbag.items():
+            for keyword, multiplicity in keywordbag.items():
                 lemma_to_keywordbag_total[lemma][keyword] += multiplicity
 
     return bag_of_words, lemma_to_keywordbag_total

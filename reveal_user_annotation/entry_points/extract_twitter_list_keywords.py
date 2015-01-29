@@ -35,7 +35,7 @@ def worker_function(file_name_list,
         user_annotation["lemma_to_keywordbag"] = lemma_to_keywordbag
 
         target_path = next(target_path_list)
-        with open(target_path, "w") as fp:
+        with open(target_path, "w", encoding="utf-8") as fp:
             json.dump(user_annotation, fp)
 
 

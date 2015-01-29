@@ -6,6 +6,8 @@ import numpy as np
 import scipy.sparse as sparse
 import copy
 import twython
+from collections import defaultdict
+from operator import itemgetter
 from urllib.error import URLError
 from http.client import BadStatusLine
 
@@ -37,34 +39,41 @@ def extract_user_keywords_generator(twitter_lists_gen, lemmatizing="wordnet"):
         yield user_twitter_id, user_annotation
 
 
-def form_user_label_matrix(user_twitter_list_keywords_gen):
+def form_user_label_matrix(user_twitter_list_keywords_gen, id_to_node):
     """
     Forms the user-label matrix to be used in multi-label classification.
 
     Input:   - user_twitter_list_keywords_gen:
+             - id_to_node:  A Twitter id to node map as a python dictionary.
 
     Outputs: - user_label_matrix: A user-to-label matrix in scipy sparse matrix format.
-             - annotated_user_ids: A numpy array containing the user Twitter ids.
-             - label_to_topic: A python dictionary that maps a numerical label to a string topic/keyword.
+             - annotated_nodes: A numpy array containing graph nodes.
+             - label_to_lemma: A python dictionary that maps a numerical label to a string topic lemma.
+             - lemma_to_keyword: A python dictionary that maps a lemma to the original keyword.
     """
-    user_label_matrix, annotated_user_ids, label_to_topic = form_user_term_matrix(user_twitter_list_keywords_gen)
+    user_label_matrix, annotated_nodes, label_to_lemma, node_to_lemma_tokeywordbag = form_user_term_matrix(user_twitter_list_keywords_gen,
+                                                                                                           id_to_node)
 
-    user_label_matrix, annotated_user_ids, label_to_topic = filter_user_term_matrix(user_label_matrix,
-                                                                                    annotated_user_ids,
-                                                                                    label_to_topic)
+    user_label_matrix, annotated_nodes, label_to_lemma = filter_user_term_matrix(user_label_matrix,
+                                                                                 annotated_nodes,
+                                                                                 label_to_lemma)
 
-    return user_label_matrix, annotated_user_ids, label_to_topic
+    lemma_to_keyword = form_lemma_tokeyword_map(annotated_nodes, node_to_lemma_tokeywordbag)
+
+    return user_label_matrix, annotated_nodes, label_to_lemma, lemma_to_keyword
 
 
-def form_user_term_matrix(user_twitter_list_keywords_gen):
+def form_user_term_matrix(user_twitter_list_keywords_gen, id_to_node):
     """
     Forms a user-term matrix.
 
     Input:   - user_twitter_list_keywords_gen: A python generator that yields a user Twitter id and a bag-of-words.
+             - id_to_node:  A Twitter id to node map as a python dictionary.
 
     Outputs: - user_term_matrix: A user-to-term matrix in scipy sparse matrix format.
-             - annotated_user_ids: A numpy array containing the user Twitter ids.
+             - annotated_nodes: A numpy array containing graph nodes.
              - label_to_topic: A python dictionary that maps a numerical label to a string topic/keyword.
+             - node_to_lemma_tokeywordbag: A python dictionary that maps nodes to lemma-to-keyword bags.
     """
     # Prepare for iteration.
     term_to_attribute = dict()
@@ -77,20 +86,24 @@ def form_user_term_matrix(user_twitter_list_keywords_gen):
     append_user_term_matrix_col = user_term_matrix_col.append
     append_user_term_matrix_data = user_term_matrix_data.append
 
-    annotated_user_ids = list()
-    append_user_id = annotated_user_ids.append
+    annotated_nodes = list()
+    append_node = annotated_nodes.append
 
-    for user_twitter_id, bag_of_words in user_twitter_list_keywords_gen:
-        append_user_id(user_twitter_id)
+    node_to_lemma_tokeywordbag = dict()
+
+    for user_twitter_id, bag_of_words, lemma_to_keywordbag in user_twitter_list_keywords_gen:
+        node = id_to_node[user_twitter_id]
+        append_node(node)
+        node_to_lemma_tokeywordbag[node] = lemma_to_keywordbag
         for term, multiplicity in bag_of_words:
             vocabulary_size = len(term_to_attribute)
             attribute = term_to_attribute.setdefault(term, default=vocabulary_size)
 
-            append_user_term_matrix_row(user_twitter_id)
+            append_user_term_matrix_row(node)
             append_user_term_matrix_col(attribute)
             append_user_term_matrix_data(multiplicity)
 
-    annotated_user_ids = np.array(list(set(annotated_user_ids)), dtype=np.int64)
+    annotated_nodes = np.array(list(set(annotated_nodes)), dtype=np.int64)
 
     user_term_matrix_row = np.array(user_term_matrix_row, dtype=np.int64)
     user_term_matrix_col = np.array(user_term_matrix_col, dtype=np.int64)
@@ -98,23 +111,23 @@ def form_user_term_matrix(user_twitter_list_keywords_gen):
 
     user_term_matrix = sparse.coo_matrix((user_term_matrix_data,
                                           (user_term_matrix_row, user_term_matrix_col)),
-                                         shape=(annotated_user_ids.size, len(term_to_attribute)))
+                                         shape=(annotated_nodes.size, len(term_to_attribute)))
 
     label_to_topic = dict(zip(term_to_attribute.values(), term_to_attribute.keys()))
 
-    return user_term_matrix, annotated_user_ids, label_to_topic
+    return user_term_matrix, annotated_nodes, label_to_topic, node_to_lemma_tokeywordbag
 
 
-def filter_user_term_matrix(user_term_matrix, annotated_user_ids, label_to_topic):
+def filter_user_term_matrix(user_term_matrix, annotated_nodes, label_to_topic):
     """
     Filters out labels that are either too rare, or have very few representatives.
 
     Inputs:  - user_term_matrix: A user-to-term matrix in scipy sparse matrix format.
-             - annotated_user_ids: A numpy array containing the user Twitter ids.
+             - annotated_nodes: A numpy array containing graph nodes.
              - label_to_topic: A python dictionary that maps a numerical label to a string topic/keyword.
 
     Outputs: - user_term_matrix: The filtered user-to-term matrix in scipy sparse matrix format.
-             - annotated_user_ids: A numpy array containing the user Twitter ids.
+             - annotated_nodes: A numpy array containing graph nodes.
              - label_to_topic: A python dictionary that maps a numerical label to a string topic/keyword.
     """
     # Eliminate zeros.
@@ -143,8 +156,6 @@ def filter_user_term_matrix(user_term_matrix, annotated_user_ids, label_to_topic
     # Most topics are heavy-tailed. For each topic, threshold to annotate.
     percentile = 75
 
-    # Story topic tf-idf
-    print("Story topic tf-idf.")
     matrix_row = list()
     matrix_col = list()
     for topic in np.arange(user_term_matrix.shape[1]):
@@ -175,7 +186,22 @@ def filter_user_term_matrix(user_term_matrix, annotated_user_ids, label_to_topic
             counter += 1
         label_to_topic = temp_map
 
-    return user_term_matrix, annotated_user_ids, label_to_topic
+    return user_term_matrix, annotated_nodes, label_to_topic
+
+
+def form_lemma_tokeyword_map(annotated_nodes, node_to_lemma_tokeywordbag):
+    # Reduce relevant lemma-to-original keyword bags.
+    lemma_to_keywordbag = defaultdict(defaultdict(int))
+    for node in annotated_nodes:
+        for lemma, keywordbag in node_to_lemma_tokeywordbag[node].items():
+            for keyword, multiplicity in keywordbag:
+                lemma_to_keywordbag[lemma][keyword] += multiplicity
+
+    lemma_to_keyword = dict()
+    for lemma, keywordbag in lemma_to_keywordbag.items():
+        lemma_to_keyword[lemma] = max(keywordbag.iteritems(), key=itemgetter(1))[0]
+
+    return lemma_to_keyword
 
 
 def fetch_twitter_lists_for_user_ids_generator(user_id_list):
@@ -223,23 +249,37 @@ def fetch_twitter_lists_for_user_ids_generator(user_id_list):
             yield user_twitter_id, None
 
 
-def decide_which_users_to_annotate(centrality_vector, start_index=0, offset=100):
+def decide_which_users_to_annotate(centrality_vector,
+                                   number_to_annotate,
+                                   already_annotated,
+                                   node_to_id):
     """
     Sorts a centrality vector and returns the Twitter user ids that are to be annotated.
 
     Inputs: - centrality_vector: A numpy array vector, that contains the centrality values for all users.
-            - start_index: An index that denotes the rank of the most central user to be annotated.
-            - offset: The number of users in decreasing centrality to be annotated.
+            - number_to_annotate: The number of users to annotate.
+            - already_annotated: A python set of user twitter ids that have already been annotated.
+            - node_to_id: A python dictionary that maps graph nodes to user twitter ids.
 
     Output: - user_id_list: A python list of Twitter user ids.
     """
     # Sort the centrality vector according to decreasing centrality.
     ind = np.argsort(centrality_vector)
-    reversed_ind = ind[::-1]
+    reversed_ind = (node for node in ind[::-1])
 
     # Get the sublist of Twitter user ids to return.
-    end_index = start_index + offset
-    user_id_list = list(reversed_ind[start_index:end_index])
+    user_id_list = list()
+    append_user_id = user_id_list.append
+
+    counter = 0
+    for node in reversed_ind:
+        user_twitter_id = node_to_id[node]
+        if user_twitter_id not in already_annotated:
+            append_user_id(user_twitter_id)
+            counter += 1
+
+            if counter >= number_to_annotate:
+                break
 
     return user_id_list
 
