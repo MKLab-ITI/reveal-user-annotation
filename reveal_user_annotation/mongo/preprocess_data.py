@@ -208,7 +208,7 @@ def extract_graphs_and_lemmas_from_tweets(tweet_generator):
                 append_retweet_graph_col(original_tweet_user_id)
 
                 # Extract lemmas from the text.
-                tweet_lemmas = clean_document(original_tweet["text"])
+                tweet_lemmas, lemma_to_keywordbag = clean_document(original_tweet["text"])
                 bag_of_lemmas = combine_word_list(tweet_lemmas)
                 for lemma, multiplicity in bag_of_lemmas.values():
                     vocabulary_size = len(lemma_to_attribute)
@@ -252,7 +252,7 @@ def extract_graphs_and_lemmas_from_tweets(tweet_generator):
         else:
             # We are dealing with an original tweet.
             #  Extract lemmas from the text.
-            tweet_lemmas = clean_document(tweet["text"])
+            tweet_lemmas, lemma_to_keywordbag = clean_document(tweet["text"])
             bag_of_lemmas = combine_word_list(tweet_lemmas)
             for lemma, multiplicity in bag_of_lemmas.values():
                 vocabulary_size = len(lemma_to_attribute)

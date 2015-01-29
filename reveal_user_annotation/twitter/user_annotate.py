@@ -28,9 +28,13 @@ def extract_user_keywords_generator(twitter_lists_gen, lemmatizing="wordnet"):
     # Extract keywords serially.
     ####################################################################################################################
     for user_twitter_id, twitter_lists_list in twitter_lists_gen:
-        bag_of_words = user_twitter_list_bag_of_words(twitter_lists_list, lemmatizing)
+        bag_of_lemmas, lemma_to_keywordbag = user_twitter_list_bag_of_words(twitter_lists_list, lemmatizing)
 
-        yield user_twitter_id, bag_of_words
+        user_annotation = dict()
+        user_annotation["bag_of_lemmas"] = bag_of_lemmas
+        user_annotation["lemma_to_keywordbag"] = lemma_to_keywordbag
+
+        yield user_twitter_id, user_annotation
 
 
 def form_user_label_matrix(user_twitter_list_keywords_gen):

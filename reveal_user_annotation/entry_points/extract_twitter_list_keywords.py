@@ -28,11 +28,15 @@ def worker_function(file_name_list,
         else:
             continue
 
-        bag_of_words = user_twitter_list_bag_of_words(twitter_lists_corpus, lemmatizing)
+        bag_of_lemmas, lemma_to_keywordbag = user_twitter_list_bag_of_words(twitter_lists_corpus, lemmatizing)
+
+        user_annotation = dict()
+        user_annotation["bag_of_lemmas"] = bag_of_lemmas
+        user_annotation["lemma_to_keywordbag"] = lemma_to_keywordbag
 
         target_path = next(target_path_list)
         with open(target_path, "w") as fp:
-            json.dump(bag_of_words, fp)
+            json.dump(user_annotation, fp)
 
 
 def main():

@@ -11,6 +11,7 @@ from nltk.stem.snowball import SnowballStemmer
 from nltk.stem.wordnet import WordNetLemmatizer
 from multiprocessing import Pool
 from functools import partial
+from collections import defaultdict
 
 from reveal_user_annotation.common.config_package import get_package_path, get_threads_number
 from reveal_user_annotation.common.datarw import get_file_row_generator
@@ -52,6 +53,7 @@ def clean_document(document, lemmatizing="wordnet"):
             - lemmatizing: A string containing one of the following: "porter", "snowball" or "wordnet".
 
     Output: - lemma_list: A python list of lemmas or stems.
+            - lemma_to_topic: A python dictionary that maps stems/lemmas to original topic keywords.
     """
     ####################################################################################################################
     # Tokenizing text
@@ -104,24 +106,32 @@ def clean_document(document, lemmatizing="wordnet"):
     tokenized_document_no_stopwords = list()
     append_word = tokenized_document_no_stopwords.append
     for word in tokenized_document_no_punctuation:
-        if not word in stopset:
+        if word not in stopset:
             append_word(word)
 
     ####################################################################################################################
     # Stemming and Lemmatizing
     ####################################################################################################################
+    lemma_to_keywordbag = defaultdict(defaultdict(int))
+
     final_doc = list()
     append_lemma = final_doc.append
     for word in tokenized_document_no_stopwords:
         if lemmatizing == "porter":
             porter = PorterStemmer()
-            append_lemma(porter.stem(word))
+            stem = porter.stem(word)
+            append_lemma(stem)
+            lemma_to_keywordbag[stem][word] += 1
         elif lemmatizing == "snowball":
             snowball = SnowballStemmer('english')
-            append_lemma(snowball.stem(word))
+            stem = snowball.stem(word)
+            append_lemma(stem)
+            lemma_to_keywordbag[stem][word] += 1
         elif lemmatizing == "wordnet":
             wordnet = WordNetLemmatizer()
-            append_lemma(wordnet.lemmatize(word))  # Note that lemmatize() can also takes part of speech as an argument!
+            lemma = wordnet.lemmatize(word)
+            append_lemma(lemma)
+            lemma_to_keywordbag[lemma][word] += 1
         else:
             print("Invalid lemmatizer argument.")
             raise RuntimeError
@@ -135,7 +145,7 @@ def clean_document(document, lemmatizing="wordnet"):
         if word not in stopset:
             append_word(word)
 
-    return lemma_list
+    return lemma_list, lemma_to_keywordbag
 
 
 def clean_corpus_serial(corpus, lemmatizing="wordnet"):
@@ -150,12 +160,18 @@ def clean_corpus_serial(corpus, lemmatizing="wordnet"):
     list_of_bags_of_words = list()
     append_bag_of_words = list_of_bags_of_words.append
 
+    lemma_to_keywordbag_total = defaultdict(defaultdict(int))
+
     for document in corpus:
-        word_list = clean_document(document=document, lemmatizing=lemmatizing)
+        word_list, lemma_to_keywordbag = clean_document(document=document, lemmatizing=lemmatizing)
         bag_of_words = combine_word_list(word_list)
         append_bag_of_words(bag_of_words)
 
-    return list_of_bags_of_words
+        for lemma, keywordbag in lemma_to_keywordbag.values():
+            for keyword, multiplicity in keywordbag.values():
+                lemma_to_keywordbag_total[lemma][keyword] += multiplicity
+
+    return list_of_bags_of_words, lemma_to_keywordbag_total
 
 
 def extract_bag_of_words_from_corpus_parallel(corpus, lemmatizing="wordnet"):
@@ -168,21 +184,28 @@ def extract_bag_of_words_from_corpus_parallel(corpus, lemmatizing="wordnet"):
     Output: - bag_of_words: This is a bag-of-words in python dictionary format.
     """
     ####################################################################################################################
-    # Map and reduce document cleaning
+    # Map and reduce document cleaning.
     ####################################################################################################################
-    # Build a pool of processes
+    # Build a pool of processes.
     pool = Pool(processes=get_threads_number()*2,)
 
-    # Partition the tweets to chunks
+    # Partition the tweets to chunks.
     partitioned_corpus = chunks(corpus, len(corpus) / get_threads_number())
 
-    # Map the cleaning of the tweet corpus to a pool of processes
-    list_of_bags_of_words = pool.map(partial(clean_corpus_serial, lemmatizing=lemmatizing), partitioned_corpus)
+    # Map the cleaning of the tweet corpus to a pool of processes.
+    list_of_bags_of_words, list_of_lemma_to_keywordset_maps = pool.map(partial(clean_corpus_serial, lemmatizing=lemmatizing), partitioned_corpus)
 
-    # Reduce dictionaries to a single dictionary serially
+    # Reduce dictionaries to a single dictionary serially.
     bag_of_words = reduce_list_of_bags_of_words(list_of_bags_of_words)
 
-    return bag_of_words
+    # Reduce lemma to keyword maps to a single dictionary.
+    lemma_to_keywordbag_total = defaultdict(defaultdict(int))
+    for lemma_to_keywordbag in list_of_lemma_to_keywordset_maps:
+        for lemma, keywordbag in lemma_to_keywordbag.values():
+            for keyword, multiplicity in keywordbag.values():
+                lemma_to_keywordbag_total[lemma][keyword] += multiplicity
+
+    return bag_of_words, lemma_to_keywordbag_total
 
 
 first_cap_re = re.compile('(.)([A-Z][a-z]+)')
