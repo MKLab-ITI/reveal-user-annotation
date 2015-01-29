@@ -15,7 +15,7 @@ def main():
 
     args = parser.parse_args()
 
-    snow_tweets_folder = args.source_folder
+    snow_tweets_folder = args.snow_tweets_folder
 
     # Store tweets in mongo.
     daemon = start_local_mongo_daemon()

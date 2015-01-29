@@ -26,11 +26,11 @@ def configure_package():
         for file_row in f:
             if (file_row[0] != "#") and (file_row[0] is not None):
                 words = file_row.strip().split("=")
-
-                if words[1] == "None":
-                    configuration_dictionary[words[0]] = None
-                else:
-                    configuration_dictionary[words[0]] = words[1]
+                if len(words) > 1:
+                    if words[1] == "None":
+                        configuration_dictionary[words[0]] = None
+                    else:
+                        configuration_dictionary[words[0]] = words[1]
 
     print("#################################")
     print("Configure local disk data folder.")
