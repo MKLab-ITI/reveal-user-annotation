@@ -112,7 +112,7 @@ def clean_document(document, lemmatizing="wordnet"):
     ####################################################################################################################
     # Stemming and Lemmatizing
     ####################################################################################################################
-    lemma_to_keywordbag = defaultdict(defaultdict(int))
+    lemma_to_keywordbag = defaultdict(lambda: defaultdict(int))
 
     final_doc = list()
     append_lemma = final_doc.append
@@ -160,7 +160,7 @@ def clean_corpus_serial(corpus, lemmatizing="wordnet"):
     list_of_bags_of_words = list()
     append_bag_of_words = list_of_bags_of_words.append
 
-    lemma_to_keywordbag_total = defaultdict(defaultdict(int))
+    lemma_to_keywordbag_total = defaultdict(lambda: defaultdict(int))
 
     for document in corpus:
         word_list, lemma_to_keywordbag = clean_document(document=document, lemmatizing=lemmatizing)
@@ -199,7 +199,7 @@ def extract_bag_of_words_from_corpus_parallel(corpus, lemmatizing="wordnet"):
     bag_of_words = reduce_list_of_bags_of_words(list_of_bags_of_words)
 
     # Reduce lemma to keyword maps to a single dictionary.
-    lemma_to_keywordbag_total = defaultdict(defaultdict(int))
+    lemma_to_keywordbag_total = defaultdict(lambda: defaultdict(int))
     for lemma_to_keywordbag in list_of_lemma_to_keywordset_maps:
         for lemma, keywordbag in lemma_to_keywordbag.items():
             for keyword, multiplicity in keywordbag.items():

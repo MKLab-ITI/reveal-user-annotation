@@ -16,7 +16,6 @@ def worker_function(file_name_list,
                     lemmatizing,
                     source_folder,
                     target_folder):
-
     source_path_list = (source_folder + "/" + file_name for file_name in file_name_list)
     target_path_list = (target_folder + "/" + file_name[:-4] + ".json" for file_name in file_name_list)
 
