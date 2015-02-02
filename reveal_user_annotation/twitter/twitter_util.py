@@ -23,7 +23,6 @@ def login():
 
     twitter = Twython(app_key, app_secret)
     auth = twitter.get_authentication_tokens(screen_name=screen_name)
-    print(auth)
 
     return twitter
 
@@ -132,13 +131,13 @@ def handle_twitter_http_error(e, call_counter, time_window_start, wait_period):
 
     Raises: - twython.TwythonError
     """
-    if e.e.code == 401:
+    if e.error_code == 401:
         # Encountered 401 Error (Not Authorized)
         raise e
-    elif e.e.code == 404:
+    elif e.error_code == 404:
         # Encountered 404 Error (Not Found)
         raise e
-    elif e.e.code == 429:
+    elif e.error_code == 429:
         # Encountered 429 Error (Rate Limit Exceeded)
         # Sleep for 15 minutes
         call_counter = 0
@@ -146,7 +145,7 @@ def handle_twitter_http_error(e, call_counter, time_window_start, wait_period):
         time.sleep(60*15 + 5)
         time_window_start = time.perf_counter()
         return call_counter, time_window_start, wait_period
-    elif e.e.code in (500, 502, 503, 504):
+    elif e.error_code in (500, 502, 503, 504):
         time.sleep(wait_period)
         wait_period *= 1.5
         return call_counter, time_window_start, wait_period

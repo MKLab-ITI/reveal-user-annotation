@@ -30,13 +30,21 @@ def extract_user_keywords_generator(twitter_lists_gen, lemmatizing="wordnet"):
     # Extract keywords serially.
     ####################################################################################################################
     for user_twitter_id, twitter_lists_list in twitter_lists_gen:
-        bag_of_lemmas, lemma_to_keywordbag = user_twitter_list_bag_of_words(twitter_lists_list, lemmatizing)
+        if twitter_lists_list is not None:
+            if "lists" in twitter_lists_list.keys():
+                twitter_lists_list = twitter_lists_list["lists"]
 
-        user_annotation = dict()
-        user_annotation["bag_of_lemmas"] = bag_of_lemmas
-        user_annotation["lemma_to_keywordbag"] = lemma_to_keywordbag
+            bag_of_lemmas, lemma_to_keywordbag = user_twitter_list_bag_of_words(twitter_lists_list, lemmatizing)
 
-        yield user_twitter_id, user_annotation
+            for lemma, keywordbag in lemma_to_keywordbag.items():
+                lemma_to_keywordbag[lemma] = dict(keywordbag)
+            lemma_to_keywordbag = dict(lemma_to_keywordbag)
+
+            user_annotation = dict()
+            user_annotation["bag_of_lemmas"] = bag_of_lemmas
+            user_annotation["lemma_to_keywordbag"] = lemma_to_keywordbag
+
+            yield user_twitter_id, user_annotation
 
 
 def form_user_label_matrix(user_twitter_list_keywords_gen, id_to_node):
@@ -91,13 +99,16 @@ def form_user_term_matrix(user_twitter_list_keywords_gen, id_to_node):
 
     node_to_lemma_tokeywordbag = dict()
 
-    for user_twitter_id, bag_of_words, lemma_to_keywordbag in user_twitter_list_keywords_gen:
+    for user_twitter_id, user_annotation in user_twitter_list_keywords_gen:
+        bag_of_words = user_annotation["bag_of_lemmas"]
+        lemma_to_keywordbag = user_annotation["lemma_to_keywordbag"]
+
         node = id_to_node[user_twitter_id]
         append_node(node)
         node_to_lemma_tokeywordbag[node] = lemma_to_keywordbag
-        for term, multiplicity in bag_of_words:
+        for term, multiplicity in bag_of_words.items():
             vocabulary_size = len(term_to_attribute)
-            attribute = term_to_attribute.setdefault(term, default=vocabulary_size)
+            attribute = term_to_attribute.setdefault(term, vocabulary_size)
 
             append_user_term_matrix_row(node)
             append_user_term_matrix_col(attribute)
@@ -111,7 +122,7 @@ def form_user_term_matrix(user_twitter_list_keywords_gen, id_to_node):
 
     user_term_matrix = sparse.coo_matrix((user_term_matrix_data,
                                           (user_term_matrix_row, user_term_matrix_col)),
-                                         shape=(annotated_nodes.size, len(term_to_attribute)))
+                                         shape=(len(id_to_node), len(term_to_attribute)))
 
     label_to_topic = dict(zip(term_to_attribute.values(), term_to_attribute.keys()))
 
@@ -138,7 +149,9 @@ def filter_user_term_matrix(user_term_matrix, annotated_nodes, label_to_topic):
     temp_matrix = copy.copy(user_term_matrix)
     temp_matrix.data = np.ones_like(temp_matrix.data).astype(np.int64)
     label_distribution = temp_matrix.sum(axis=0)
-    index = np.where(label_distribution <= 0)[1]
+    percentile = 90
+    p = np.percentile(label_distribution, percentile)
+    index = np.where(label_distribution <= p)[1]
     if index.shape[1] > 0:
         index = np.squeeze(np.asarray(index))
         index = np.setdiff1d(np.arange(label_distribution.size), index)
@@ -154,27 +167,31 @@ def filter_user_term_matrix(user_term_matrix, annotated_nodes, label_to_topic):
     user_term_matrix = augmented_tf_idf(user_term_matrix)
 
     # Most topics are heavy-tailed. For each topic, threshold to annotate.
-    percentile = 75
+    percentile = 80
 
     matrix_row = list()
     matrix_col = list()
+    extend_matrix_row = matrix_row.extend
+    extend_matrix_col = matrix_col.extend
+
+    user_term_matrix = sparse.csc_matrix(user_term_matrix)
     for topic in np.arange(user_term_matrix.shape[1]):
         col = user_term_matrix.getcol(topic)
         p = np.percentile(col.data, percentile)
         index = col.indices[col.data >= p]
-        matrix_row.extend(index)
-        matrix_col.extend(topic*np.ones_like(index))
-        print(col.data[col.data < p].size, col.data[col.data >= p].size)
+        extend_matrix_row(index)
+        extend_matrix_col(topic*np.ones_like(index))
     matrix_row = np.array(matrix_row, dtype=np.int64)
     matrix_col = np.array(matrix_col, dtype=np.int64)
     matrix_data = np.ones_like(matrix_row, dtype=np.int8)
     user_term_matrix = sparse.coo_matrix((matrix_data, (matrix_row, matrix_col)), shape=user_term_matrix.shape)
+    user_term_matrix = sparse.csr_matrix(user_term_matrix)
 
     # If there is a small number of samples of a label, remove them from both the matrix and the label-to-topic map.
     temp_matrix = copy.copy(user_term_matrix)
     temp_matrix.data = np.ones_like(temp_matrix.data).astype(np.int64)
     label_distribution = temp_matrix.sum(axis=0)
-    index = np.where(label_distribution < 5)[1]
+    index = np.where(label_distribution < 1)[1]
     if index.shape[1] > 0:
         index = np.squeeze(np.asarray(index))
         index = np.setdiff1d(np.arange(label_distribution.size), index)
@@ -191,15 +208,15 @@ def filter_user_term_matrix(user_term_matrix, annotated_nodes, label_to_topic):
 
 def form_lemma_tokeyword_map(annotated_nodes, node_to_lemma_tokeywordbag):
     # Reduce relevant lemma-to-original keyword bags.
-    lemma_to_keywordbag = defaultdict(defaultdict(int))
+    lemma_to_keywordbag = defaultdict(lambda: defaultdict(int))
     for node in annotated_nodes:
         for lemma, keywordbag in node_to_lemma_tokeywordbag[node].items():
-            for keyword, multiplicity in keywordbag:
+            for keyword, multiplicity in keywordbag.items():
                 lemma_to_keywordbag[lemma][keyword] += multiplicity
 
     lemma_to_keyword = dict()
     for lemma, keywordbag in lemma_to_keywordbag.items():
-        lemma_to_keyword[lemma] = max(keywordbag.iteritems(), key=itemgetter(1))[0]
+        lemma_to_keyword[lemma] = max(keywordbag.items(), key=itemgetter(1))[0]
 
     return lemma_to_keyword
 
@@ -264,8 +281,8 @@ def decide_which_users_to_annotate(centrality_vector,
     Output: - user_id_list: A python list of Twitter user ids.
     """
     # Sort the centrality vector according to decreasing centrality.
-    ind = np.argsort(centrality_vector)
-    reversed_ind = (node for node in ind[::-1])
+    ind = np.argsort(np.squeeze(np.asarray(centrality_vector)))
+    reversed_ind = ind[::-1]
 
     # Get the sublist of Twitter user ids to return.
     user_id_list = list()

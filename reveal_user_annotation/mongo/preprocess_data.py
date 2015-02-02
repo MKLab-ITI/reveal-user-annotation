@@ -59,9 +59,7 @@ def store_user_documents(user_document_gen, client, mongo_database_name):
     for user_twitter_id, user_document_list in user_document_gen:
         collection_name = str(user_twitter_id)
         collection = mongo_database[collection_name]
-
-        for twitter_list in user_document_list:
-            collection.insert(twitter_list)
+        collection.insert(user_document_list)
 
 
 def read_user_documents_for_single_user_generator(user_twitter_id, mongo_database):
@@ -95,9 +93,12 @@ def read_user_documents_generator(user_twitter_id_list, client, mongo_database_n
     """
     mongo_database = client[mongo_database_name]
     for user_twitter_id in user_twitter_id_list:
-        twitter_list_gen = read_user_documents_for_single_user_generator(user_twitter_id, mongo_database)
+        collection_name = str(user_twitter_id)
+        collection = mongo_database[collection_name]
+        cursor = collection.find()
 
-        yield user_twitter_id, twitter_list_gen
+        for documents in cursor:
+            yield user_twitter_id, documents
 
 
 def get_collection_documents_generator(client, database_name, collection_name, spec, latest_n, sort_key):
@@ -115,14 +116,16 @@ def get_collection_documents_generator(client, database_name, collection_name, s
     """
     mongo_database = client[database_name]
     collection = mongo_database[collection_name]
+    collection.create_index(sort_key)
 
     if latest_n is not None:
         skip_n = collection.count() - latest_n
         if collection.count() - latest_n < 0:
             skip_n = 0
-        cursor = collection.find(spec=spec, skip=skip_n, sort={sort_key: ASCENDING})
+        cursor = collection.find(spec=spec).sort([(sort_key, ASCENDING),]).skip(skip_n)
+        cursor = cursor[skip_n:]
     else:
-        cursor = collection.find(spec=spec).sort({sort_key: ASCENDING})
+        cursor = collection.find(spec=spec).sort([(sort_key, ASCENDING),])
 
     for document in cursor:
         yield document
@@ -175,6 +178,7 @@ def extract_graphs_and_lemmas_from_tweets(tweet_generator):
     append_user_lemma_matrix_data = user_lemma_matrix_data.append
 
     # Initialize dictionaries
+    id_to_node = dict()
     id_to_name = dict()
     lemma_to_attribute = dict()
 
@@ -184,6 +188,8 @@ def extract_graphs_and_lemmas_from_tweets(tweet_generator):
     for tweet in tweet_generator:
         append_tweet_id(tweet["id"])
         user_id = tweet["user"]["id"]
+        graph_size = len(id_to_node)
+        source_node = id_to_node.setdefault(user_id, graph_size)
         id_to_name[user_id] = tweet["user"]["screen_name"]
         append_user_id(user_id)
 
@@ -201,20 +207,22 @@ def extract_graphs_and_lemmas_from_tweets(tweet_generator):
                 append_tweet_id(original_tweet["id"])
 
                 original_tweet_user_id = original_tweet["user"]["id"]
+                graph_size = len(id_to_node)
+                original_tweet_node = id_to_node.setdefault(original_tweet_user_id, graph_size)
                 id_to_name[original_tweet_user_id] = original_tweet["user"]["screen_name"]
                 append_user_id(original_tweet_user_id)
 
-                append_retweet_graph_row(user_id)
-                append_retweet_graph_col(original_tweet_user_id)
+                append_retweet_graph_row(source_node)
+                append_retweet_graph_col(original_tweet_node)
 
                 # Extract lemmas from the text.
                 tweet_lemmas, lemma_to_keywordbag = clean_document(original_tweet["text"])
                 bag_of_lemmas = combine_word_list(tweet_lemmas)
-                for lemma, multiplicity in bag_of_lemmas.values():
+                for lemma, multiplicity in bag_of_lemmas.items():
                     vocabulary_size = len(lemma_to_attribute)
-                    attribute = lemma_to_attribute.setdefault(lemma, default=vocabulary_size)
+                    attribute = lemma_to_attribute.setdefault(lemma, vocabulary_size)
 
-                    append_user_lemma_matrix_row(original_tweet_user_id)
+                    append_user_lemma_matrix_row(original_tweet_node)
                     append_user_lemma_matrix_col(attribute)
                     append_user_lemma_matrix_data(multiplicity)
 
@@ -222,29 +230,35 @@ def extract_graphs_and_lemmas_from_tweets(tweet_generator):
                 # This may also exist in the mentioned field.
                 in_reply_to_user_id = original_tweet["in_reply_to_user_id"]
                 if in_reply_to_user_id is not None:
-                    id_to_name[in_reply_to_user_id] = original_tweet["in_reply_to_user_screen_name"]
+                    graph_size = len(id_to_node)
+                    in_reply_to_node = id_to_node.setdefault(in_reply_to_user_id, graph_size)
+                    id_to_name[in_reply_to_user_id] = original_tweet["in_reply_to_screen_name"]
                     append_user_id(in_reply_to_user_id)
 
-                    append_mention_graph_row(original_tweet_user_id)
-                    append_mention_graph_col(in_reply_to_user_id)
+                    append_mention_graph_row(original_tweet_node)
+                    append_mention_graph_col(in_reply_to_node)
 
                     for user_mention in original_tweet["entities"]["user_mentions"]:
                         mentioned_user_id = user_mention["id"]
                         if in_reply_to_user_id != mentioned_user_id:
+                            graph_size = len(id_to_node)
+                            mentioned_node = id_to_node.setdefault(mentioned_user_id, graph_size)
                             id_to_name[mentioned_user_id] = user_mention["screen_name"]
                             append_user_id(mentioned_user_id)
 
-                            append_mention_graph_row(original_tweet_user_id)
-                            append_mention_graph_col(mentioned_user_id)
+                            append_mention_graph_row(original_tweet_node)
+                            append_mention_graph_col(mentioned_node)
                 else:
                     # Check if this tweet has mentions to other users.
                     for user_mention in original_tweet["entities"]["user_mentions"]:
                         mentioned_user_id = user_mention["id"]
+                        graph_size = len(id_to_node)
+                        mentioned_node = id_to_node.setdefault(mentioned_user_id, graph_size)
                         id_to_name[mentioned_user_id] = user_mention["screen_name"]
                         append_user_id(mentioned_user_id)
 
-                        append_mention_graph_row(original_tweet_user_id)
-                        append_mention_graph_col(mentioned_user_id)
+                        append_mention_graph_row(original_tweet_node)
+                        append_mention_graph_col(mentioned_node)
             else:
                 tweet_id_set = list(tweet_id_set)
                 append_tweet_id = tweet_id_set.append
@@ -254,11 +268,11 @@ def extract_graphs_and_lemmas_from_tweets(tweet_generator):
             #  Extract lemmas from the text.
             tweet_lemmas, lemma_to_keywordbag = clean_document(tweet["text"])
             bag_of_lemmas = combine_word_list(tweet_lemmas)
-            for lemma, multiplicity in bag_of_lemmas.values():
+            for lemma, multiplicity in bag_of_lemmas.items():
                 vocabulary_size = len(lemma_to_attribute)
-                attribute = lemma_to_attribute.setdefault(lemma, default=vocabulary_size)
+                attribute = lemma_to_attribute.setdefault(lemma, vocabulary_size)
 
-                append_user_lemma_matrix_row(user_id)
+                append_user_lemma_matrix_row(source_node)
                 append_user_lemma_matrix_col(attribute)
                 append_user_lemma_matrix_data(multiplicity)
 
@@ -266,30 +280,36 @@ def extract_graphs_and_lemmas_from_tweets(tweet_generator):
             # This may also exist in the mentioned field.
             in_reply_to_user_id = tweet["in_reply_to_user_id"]
             if in_reply_to_user_id is not None:
-                id_to_name[in_reply_to_user_id] = tweet["in_reply_to_user_screen_name"]
+                graph_size = len(id_to_node)
+                in_reply_to_node = id_to_node.setdefault(in_reply_to_user_id, graph_size)
+                id_to_name[in_reply_to_user_id] = tweet["in_reply_to_screen_name"]
                 append_user_id(in_reply_to_user_id)
 
-                append_mention_graph_row(user_id)
-                append_mention_graph_col(in_reply_to_user_id)
+                append_mention_graph_row(source_node)
+                append_mention_graph_col(in_reply_to_node)
 
                 # Check if this tweet has mentions to other users.
                 for user_mention in tweet["entities"]["user_mentions"]:
                     mentioned_user_id = user_mention["id"]
                     if in_reply_to_user_id != mentioned_user_id:
+                        graph_size = len(id_to_node)
+                        mentioned_node = id_to_node.setdefault(mentioned_user_id, graph_size)
                         id_to_name[mentioned_user_id] = user_mention["screen_name"]
                         append_user_id(mentioned_user_id)
 
-                        append_mention_graph_row(user_id)
-                        append_mention_graph_col(mentioned_user_id)
+                        append_mention_graph_row(source_node)
+                        append_mention_graph_col(mentioned_node)
             else:
                 # Check if this tweet has mentions to other users.
                 for user_mention in tweet["entities"]["user_mentions"]:
                     mentioned_user_id = user_mention["id"]
+                    graph_size = len(id_to_node)
+                    mentioned_node = id_to_node.setdefault(mentioned_user_id, graph_size)
                     id_to_name[mentioned_user_id] = user_mention["screen_name"]
                     append_user_id(mentioned_user_id)
 
-                    append_mention_graph_row(user_id)
-                    append_mention_graph_col(mentioned_user_id)
+                    append_mention_graph_row(source_node)
+                    append_mention_graph_col(mentioned_node)
 
     ####################################################################################################################
     # Final steps of preprocessing tweets.
@@ -298,6 +318,7 @@ def extract_graphs_and_lemmas_from_tweets(tweet_generator):
     tweet_id_set = set(tweet_id_set)
     user_id_set = set(user_id_set)
     number_of_users = len(user_id_set)
+    # min_number_of_users = max(user_id_set) + 1
 
     # Form mention graph adjacency matrix.
     mention_graph_row = np.array(mention_graph_row, dtype=np.int64)
@@ -325,10 +346,107 @@ def extract_graphs_and_lemmas_from_tweets(tweet_generator):
     user_lemma_matrix = sparse.coo_matrix((user_lemma_matrix_data, (user_lemma_matrix_row, user_lemma_matrix_col)),
                                           shape=(number_of_users, number_of_lemmas))
 
-    return mention_graph, retweet_graph, user_lemma_matrix, tweet_id_set, user_id_set, lemma_to_attribute
+    node_to_id = dict(zip(id_to_node.values(), id_to_node.keys()))
+
+    return mention_graph, retweet_graph, user_lemma_matrix, tweet_id_set, user_id_set, node_to_id, lemma_to_attribute
 
 
-def extract_connected_components(graph, connectivity_type="weak"):
+def extract_mention_graph_from_tweets(tweet_generator):
+    """
+    Given a tweet python generator, we encode the information into mention and retweet graphs and a lemma matrix.
+
+    We assume that the tweets are given in increasing timestamp.
+
+    Inputs:  - tweet_generator: A python generator of tweets in python dictionary (json) format.
+
+    Outputs: - mention_graph: The mention graph as a SciPy sparse matrix.
+             - user_id_set: A python set containing the Twitter ids for all the dataset users.
+    """
+    ####################################################################################################################
+    # Prepare for iterating over tweets.
+    ####################################################################################################################
+    # These are initialized as lists for incremental extension.
+    user_id_set = list()
+    append_user_id = user_id_set.append
+
+    # Initialize sparse matrix arrays
+    mention_graph_row = list()
+    mention_graph_col = list()
+
+    append_mention_graph_row = mention_graph_row.append
+    append_mention_graph_col = mention_graph_col.append
+
+    # Initialize dictionaries
+    id_to_node = dict()
+    id_to_name = dict()
+
+    ####################################################################################################################
+    # Iterate over tweets.
+    ####################################################################################################################
+    for tweet in tweet_generator:
+        user_id = tweet["user"]["id"]
+        graph_size = len(id_to_node)
+        source_node = id_to_node.setdefault(user_id, graph_size)
+        id_to_name[user_id] = tweet["user"]["screen_name"]
+        append_user_id(user_id)
+
+        # We are dealing with an original tweet.
+        # Check if this tweet was in reply to another user.
+        # This may also exist in the mentioned field.
+        in_reply_to_user_id = tweet["in_reply_to_user_id"]
+        if in_reply_to_user_id is not None:
+            graph_size = len(id_to_node)
+            in_reply_to_node = id_to_node.setdefault(in_reply_to_user_id, graph_size)
+            id_to_name[in_reply_to_user_id] = tweet["in_reply_to_screen_name"]
+            append_user_id(in_reply_to_user_id)
+
+            append_mention_graph_row(source_node)
+            append_mention_graph_col(in_reply_to_node)
+
+            # Check if this tweet has mentions to other users.
+            for user_mention in tweet["entities"]["user_mentions"]:
+                mentioned_user_id = user_mention["id"]
+                if in_reply_to_user_id != mentioned_user_id:
+                    graph_size = len(id_to_node)
+                    mentioned_node = id_to_node.setdefault(mentioned_user_id, graph_size)
+                    id_to_name[mentioned_user_id] = user_mention["screen_name"]
+                    append_user_id(mentioned_user_id)
+
+                    append_mention_graph_row(source_node)
+                    append_mention_graph_col(mentioned_node)
+        else:
+            # Check if this tweet has mentions to other users.
+            for user_mention in tweet["entities"]["user_mentions"]:
+                mentioned_user_id = user_mention["id"]
+                graph_size = len(id_to_node)
+                mentioned_node = id_to_node.setdefault(mentioned_user_id, graph_size)
+                id_to_name[mentioned_user_id] = user_mention["screen_name"]
+                append_user_id(mentioned_user_id)
+
+                append_mention_graph_row(source_node)
+                append_mention_graph_col(mentioned_node)
+
+    ####################################################################################################################
+    # Final steps of preprocessing tweets.
+    ####################################################################################################################
+    # Discard any duplicates.
+    user_id_set = set(user_id_set)
+    number_of_users = len(user_id_set)
+
+    # Form mention graph adjacency matrix.
+    mention_graph_row = np.array(mention_graph_row, dtype=np.int64)
+    mention_graph_col = np.array(mention_graph_col, dtype=np.int64)
+    mention_graph_data = np.ones_like(mention_graph_row, dtype=np.float64)
+
+    mention_graph = sparse.coo_matrix((mention_graph_data, (mention_graph_row, mention_graph_col)),
+                                      shape=(number_of_users, number_of_users))
+
+    node_to_id = dict(zip(id_to_node.values(), id_to_node.keys()))
+
+    return mention_graph, user_id_set, node_to_id
+
+
+def extract_connected_components(graph, connectivity_type, node_to_id):
     """
     Extract the largest connected component from a graph.
 
@@ -338,18 +456,23 @@ def extract_connected_components(graph, connectivity_type="weak"):
     Outputs: - largest_connected_component: An adjacency matrix in scipy sparse matrix format.
              - node_to_id: A map from graph node id to Twitter id, in python dictionary format.
     """
-    graph = nx.from_scipy_sparse_matrix(graph, create_using=nx.DiGraph())
+    nx_graph = nx.from_scipy_sparse_matrix(graph, create_using=nx.DiGraph())
 
     if connectivity_type == "weak":
-        largest_connected_component_list = nxalgcom.weakly_connected_component_subgraphs()
+        largest_connected_component_list = nxalgcom.weakly_connected_component_subgraphs(nx_graph)
     elif connectivity_type == "strong":
-        largest_connected_component_list = nxalgcom.strongly_connected_component_subgraphs()
+        largest_connected_component_list = nxalgcom.strongly_connected_component_subgraphs(nx_graph)
     else:
         print("Invalid connectivity type input.")
         raise RuntimeError
 
-    ids = largest_connected_component_list[0].nodes()
-    node_to_id = dict(zip(np.arange(len(ids)), ids))
-    largest_connected_component = graph[ids, ids]
+    # TODO: Handle singleton or empty graph.
+    largest_connected_component = next(largest_connected_component_list)
+    ids = largest_connected_component.nodes()
+    node_to_node = dict(zip(np.arange(len(ids)), ids))
+    largest_connected_component = nx.to_scipy_sparse_matrix(largest_connected_component, dtype=np.float64, format="csr")
 
-    return largest_connected_component, node_to_id
+    # Make node_to_id.
+    new_node_to_id = {k: node_to_id[v] for k, v in node_to_node.items()}
+
+    return largest_connected_component, new_node_to_id

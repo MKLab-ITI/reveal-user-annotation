@@ -57,19 +57,22 @@ def augmented_tf_idf(attribute_matrix):
     """
     number_of_documents = attribute_matrix.shape[0]
 
-    max_term_frequencies = np.zeros(number_of_documents, dtype=np.float64)
-    idf_array = np.zeros(attribute_matrix.shape[1], dtype=np.float64)
+    max_term_frequencies = np.ones(number_of_documents, dtype=np.float64)
+    idf_array = np.ones(attribute_matrix.shape[1], dtype=np.float64)
 
     # Calculate inverse document frequency
     attribute_matrix = attribute_matrix.tocsc()
     for j in np.arange(attribute_matrix.shape[1]):
-        if attribute_matrix.getcol(j).data.size != 1:
-            idf_array[j] = np.log(number_of_documents/attribute_matrix.getcol(j).data.size)
+        document_frequency = attribute_matrix.getcol(j).data.size
+        if document_frequency > 1:
+            idf_array[j] = np.log(number_of_documents/document_frequency)
 
     # Calculate maximum term frequencies for a user
     attribute_matrix = attribute_matrix.tocsr()
     for i in np.arange(attribute_matrix.shape[0]):
-        max_term_frequencies[i] = attribute_matrix.getrow(i).max()
+        max_term_frequency = attribute_matrix.getrow(i).max()
+        if max_term_frequency > 0.0:
+            max_term_frequencies[i] = attribute_matrix.getrow(i).max()
 
     # Do augmented tf-idf normalization
     attribute_matrix = attribute_matrix.tocoo()

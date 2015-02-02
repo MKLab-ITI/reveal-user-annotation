@@ -11,6 +11,7 @@ def get_configuration_details():
 
     configuration_dictionary = dict()
     for file_row in file_row_gen:
-        configuration_dictionary[file_row[0]] = file_row[1]
+        if file_row[0] != "":
+            configuration_dictionary[file_row[0]] = file_row[1]
 
     return configuration_dictionary

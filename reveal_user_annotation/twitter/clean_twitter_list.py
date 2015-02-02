@@ -22,7 +22,7 @@ def clean_twitter_list(twitter_list, lemmatizing="wordnet"):
 
     keyword_set = set(name_lemmas + description_lemmas)
 
-    lemma_to_keywordbag = defaultdict(defaultdict(int))
+    lemma_to_keywordbag = defaultdict(lambda: defaultdict(int))
     for lemma, keywordbag in name_lemma_to_keywordbag.items():
         for keyword, multiplicity in keywordbag.items():
             lemma_to_keywordbag[lemma][keyword] += multiplicity
@@ -49,11 +49,12 @@ def clean_list_of_twitter_list(list_of_twitter_lists, lemmatizing="wordnet"):
     list_of_lemma_to_keywordbags = list()
     append_lemma_to_keywordbag = list_of_lemma_to_keywordbags.append
 
-    for twitter_list in list_of_twitter_lists:
-        if twitter_list is not None:
-            keyword_set, lemma_to_keywordbag = clean_twitter_list(twitter_list=twitter_list, lemmatizing=lemmatizing)
-            append_keyword_set(keyword_set)
-            append_lemma_to_keywordbag(lemma_to_keywordbag)
+    if list_of_twitter_lists is not None:
+        for twitter_list in list_of_twitter_lists:
+            if twitter_list is not None:
+                keyword_set, lemma_to_keywordbag = clean_twitter_list(twitter_list=twitter_list, lemmatizing=lemmatizing)
+                append_keyword_set(keyword_set)
+                append_lemma_to_keywordbag(lemma_to_keywordbag)
 
     return list_of_keyword_sets, list_of_lemma_to_keywordbags
 
@@ -75,7 +76,7 @@ def user_twitter_list_bag_of_words(twitter_list_corpus, lemmatizing="wordnet"):
     bag_of_words = reduce_list_of_bags_of_words(list_of_keyword_sets)
 
     # Reduce lemma to keywordbag maps.
-    lemma_to_keywordbag_total = defaultdict(defaultdict(int))
+    lemma_to_keywordbag_total = defaultdict(lambda: defaultdict(int))
     for lemma_to_keywordbag in list_of_lemma_to_keywordbags:
         for lemma, keywordbag in lemma_to_keywordbag.items():
             for keyword, multiplicity in keywordbag.items():
