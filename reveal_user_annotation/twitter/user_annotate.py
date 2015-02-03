@@ -152,11 +152,11 @@ def filter_user_term_matrix(user_term_matrix, annotated_nodes, label_to_topic, m
     label_distribution = temp_matrix.sum(axis=0)
     index = np.argsort(np.squeeze(np.asarray(label_distribution)))
     if index.size > max_number_of_labels:
-        index = index[-max_number_of_labels:]
+        index = index[index.size-max_number_of_labels:]
     # percentile = 90
     # p = np.percentile(label_distribution, percentile)
     # index = np.where(label_distribution <= p)[1]
-    if index.shape[1] > 0:
+    if index.size > 0:
         index = np.squeeze(np.asarray(index))
         index = np.setdiff1d(np.arange(label_distribution.size), index)
         user_term_matrix = user_term_matrix[:, index]
