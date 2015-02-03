@@ -98,7 +98,7 @@ def clean_document(document, lemmatizing="wordnet"):
     extended_stopset = list()
     append_stopwords = extended_stopset.append
     for stop_word_file in more_stopword_files_list:
-        file_row_gen = get_file_row_generator(stop_word_file, ",")
+        file_row_gen = get_file_row_generator(stop_word_file, ",", encoding="utf-8")
         for row in file_row_gen:
             append_stopwords(row[0])
         stopset.update(extended_stopset)
