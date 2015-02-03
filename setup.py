@@ -9,7 +9,7 @@ def readme():
 
 setup(
     name='reveal-user-annotation',
-    version='0.1.5',
+    version='0.1.7',
     author='Georgios Rizos',
     author_email='georgerizos@iti.gr',
     packages=['reveal_user_annotation',
@@ -44,7 +44,12 @@ setup(
                             'configure_reveal_user_annotation=reveal_user_annotation.entry_points.configure_reveal_user_annotation:main',
                             'extract_twitter_list_keywords=reveal_user_annotation.entry_points.extract_twitter_list_keywords:main'],
     },
-    include_package_data=True,
+    package_data={'reveal_user_annotation.common': ['res/*.txt'],
+                  'reveal_user_annotation.text': ['res/stopwords/*.txt'],
+                  'reveal_user_annotation.twitter': ['res/oauth_login/*.txt', 'res/topics/*.txt'],
+                  'reveal_user_annotation.mongo': ['res/*.txt'],
+                  'reveal_user_annotation.pserver': ['res/*.txt']},
+    include_package_data=False,
     install_requires=[
         "numpy",
         "scipy",

@@ -47,7 +47,7 @@ def extract_user_keywords_generator(twitter_lists_gen, lemmatizing="wordnet"):
             yield user_twitter_id, user_annotation
 
 
-def form_user_label_matrix(user_twitter_list_keywords_gen, id_to_node):
+def form_user_label_matrix(user_twitter_list_keywords_gen, id_to_node, max_number_of_labels):
     """
     Forms the user-label matrix to be used in multi-label classification.
 
@@ -64,7 +64,8 @@ def form_user_label_matrix(user_twitter_list_keywords_gen, id_to_node):
 
     user_label_matrix, annotated_nodes, label_to_lemma = filter_user_term_matrix(user_label_matrix,
                                                                                  annotated_nodes,
-                                                                                 label_to_lemma)
+                                                                                 label_to_lemma,
+                                                                                 max_number_of_labels)
 
     lemma_to_keyword = form_lemma_tokeyword_map(annotated_nodes, node_to_lemma_tokeywordbag)
 
@@ -129,7 +130,7 @@ def form_user_term_matrix(user_twitter_list_keywords_gen, id_to_node):
     return user_term_matrix, annotated_nodes, label_to_topic, node_to_lemma_tokeywordbag
 
 
-def filter_user_term_matrix(user_term_matrix, annotated_nodes, label_to_topic):
+def filter_user_term_matrix(user_term_matrix, annotated_nodes, label_to_topic, max_number_of_labels):
     """
     Filters out labels that are either too rare, or have very few representatives.
 
@@ -149,9 +150,12 @@ def filter_user_term_matrix(user_term_matrix, annotated_nodes, label_to_topic):
     temp_matrix = copy.copy(user_term_matrix)
     temp_matrix.data = np.ones_like(temp_matrix.data).astype(np.int64)
     label_distribution = temp_matrix.sum(axis=0)
-    percentile = 90
-    p = np.percentile(label_distribution, percentile)
-    index = np.where(label_distribution <= p)[1]
+    index = np.argsort(np.squeeze(np.asarray(label_distribution)))
+    if index.size > max_number_of_labels:
+        index = index[-max_number_of_labels:]
+    # percentile = 90
+    # p = np.percentile(label_distribution, percentile)
+    # index = np.where(label_distribution <= p)[1]
     if index.shape[1] > 0:
         index = np.squeeze(np.asarray(index))
         index = np.setdiff1d(np.arange(label_distribution.size), index)
@@ -175,7 +179,7 @@ def filter_user_term_matrix(user_term_matrix, annotated_nodes, label_to_topic):
     extend_matrix_col = matrix_col.extend
 
     user_term_matrix = sparse.csc_matrix(user_term_matrix)
-    for topic in np.arange(user_term_matrix.shape[1]):
+    for topic in range(user_term_matrix.shape[1]):
         col = user_term_matrix.getcol(topic)
         p = np.percentile(col.data, percentile)
         index = col.indices[col.data >= p]
