@@ -152,7 +152,7 @@ def filter_user_term_matrix(user_term_matrix, annotated_nodes, label_to_topic, m
     label_distribution = temp_matrix.sum(axis=0)
     index = np.argsort(np.squeeze(np.asarray(label_distribution)))
     if index.size > max_number_of_labels:
-        index = index[index.size-max_number_of_labels:]
+        index = index[:index.size-max_number_of_labels]
     # percentile = 90
     # p = np.percentile(label_distribution, percentile)
     # index = np.where(label_distribution <= p)[1]
@@ -285,8 +285,12 @@ def decide_which_users_to_annotate(centrality_vector,
     Output: - user_id_list: A python list of Twitter user ids.
     """
     # Sort the centrality vector according to decreasing centrality.
-    ind = np.argsort(np.squeeze(np.asarray(centrality_vector)))
-    reversed_ind = ind[::-1]
+    centrality_vector = np.asarray(centrality_vector)
+    ind = np.argsort(np.squeeze(centrality_vector))
+    if centrality_vector.size > 1:
+        reversed_ind = ind[::-1]
+    else:
+        reversed_ind = ind
 
     # Get the sublist of Twitter user ids to return.
     user_id_list = list()

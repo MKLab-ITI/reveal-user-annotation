@@ -9,7 +9,7 @@ def readme():
 
 setup(
     name='reveal-user-annotation',
-    version='0.1.8',
+    version='0.1.9',
     author='Georgios Rizos',
     author_email='georgerizos@iti.gr',
     packages=['reveal_user_annotation',
