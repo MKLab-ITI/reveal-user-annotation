@@ -467,7 +467,7 @@ def extract_connected_components(graph, connectivity_type, node_to_id):
         raise RuntimeError
 
     # TODO: Handle singleton or empty graph.
-    largest_connected_component = next(largest_connected_component_list)
+    largest_connected_component = max(largest_connected_component_list, key=len)
     ids = largest_connected_component.nodes()
     node_to_node = dict(zip(np.arange(len(ids)), ids))
     largest_connected_component = nx.to_scipy_sparse_matrix(largest_connected_component, dtype=np.float64, format="csr")

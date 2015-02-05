@@ -290,7 +290,8 @@ def decide_which_users_to_annotate(centrality_vector,
     if centrality_vector.size > 1:
         reversed_ind = ind[::-1]
     else:
-        reversed_ind = ind
+        reversed_ind = list()
+        reversed_ind = reversed_ind.append(ind)
 
     # Get the sublist of Twitter user ids to return.
     user_id_list = list()
