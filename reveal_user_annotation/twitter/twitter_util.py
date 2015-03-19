@@ -10,7 +10,8 @@ from reveal_user_annotation.common.config_package import get_package_path
 from reveal_user_annotation.common.datarw import get_file_row_generator
 
 
-def login():
+def login(twitter_app_key,
+          twitter_app_secret):
     """
     This is a shortcut for logging in the Twitter app described in the config_app_credentials.txt file.
 
@@ -19,10 +20,10 @@ def login():
     ####################################################################################################################
     # Log into my application
     ####################################################################################################################
-    app_key, app_secret, screen_name = get_app_credentials()
+    # app_key, app_secret, screen_name = get_app_credentials()
 
-    twitter = Twython(app_key, app_secret)
-    auth = twitter.get_authentication_tokens(screen_name=screen_name)
+    twitter = Twython(twitter_app_key, twitter_app_secret)
+    # auth = twitter.get_authentication_tokens(screen_name=screen_name)
 
     return twitter
 
@@ -77,7 +78,7 @@ def safe_twitter_request_handler(twitter_api_func,
     while True:
         try:
             # If we have reached the call rate limit for this function:
-            if call_counter == call_rate_limit:
+            if call_counter >= call_rate_limit:
                 # Reset counter.
                 call_counter = 0
 
@@ -96,11 +97,11 @@ def safe_twitter_request_handler(twitter_api_func,
                 return twitter_api_function_result, call_counter, time_window_start
         except twython.TwythonError as e:
             # If it is a Twitter error, handle it.
-            error_count += 1
-            call_counter, time_window_start, wait_period = handle_twitter_http_error(e,
-                                                                                     call_counter,
-                                                                                     time_window_start,
-                                                                                     wait_period)
+            error_count, call_counter, time_window_start, wait_period = handle_twitter_http_error(e,
+                                                                                                  error_count,
+                                                                                                  call_counter,
+                                                                                                  time_window_start,
+                                                                                                  wait_period)
             if error_count > max_retries:
                 print("Max error count reached. Abandoning effort.")
                 raise e
@@ -116,11 +117,12 @@ def safe_twitter_request_handler(twitter_api_func,
                 raise e
 
 
-def handle_twitter_http_error(e, call_counter, time_window_start, wait_period):
+def handle_twitter_http_error(e, error_count, call_counter, time_window_start, wait_period):
     """
     This function handles the twitter request in case of an HTTP error.
 
     Inputs:  - e: A twython.TwythonError instance to be handled.
+             - error_count: Number of failed retries of the call until now.
              - call_counter: A counter that keeps track of the number of function calls in the current 15-minute window.
              - time_window_start: The timestamp of the current 15-minute window.
              - wait_period: For certain Twitter errors (i.e. server overload), we wait and call again.
@@ -140,14 +142,16 @@ def handle_twitter_http_error(e, call_counter, time_window_start, wait_period):
     elif e.error_code == 429:
         # Encountered 429 Error (Rate Limit Exceeded)
         # Sleep for 15 minutes
+        error_count += 0.5
         call_counter = 0
         wait_period = 2
         time.sleep(60*15 + 5)
         time_window_start = time.perf_counter()
-        return call_counter, time_window_start, wait_period
+        return error_count, call_counter, time_window_start, wait_period
     elif e.error_code in (500, 502, 503, 504):
+        error_count += 1
         time.sleep(wait_period)
         wait_period *= 1.5
-        return call_counter, time_window_start, wait_period
+        return error_count, call_counter, time_window_start, wait_period
     else:
         raise e

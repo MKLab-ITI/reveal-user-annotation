@@ -9,7 +9,7 @@ def readme():
 
 setup(
     name='reveal-user-annotation',
-    version='0.1.11',
+    version='0.1.12',
     author='Georgios Rizos',
     author_email='georgerizos@iti.gr',
     packages=['reveal_user_annotation',
@@ -18,6 +18,7 @@ setup(
               'reveal_user_annotation.twitter',
               'reveal_user_annotation.mongo',
               'reveal_user_annotation.pserver',
+              'reveal_user_annotation.rabbitmq',
               'reveal_user_annotation.entry_points'],
     url='https://github.com/MKLab-ITI/reveal-user-annotation',
     license='Apache',
@@ -56,6 +57,7 @@ setup(
         "nltk",
         "twython",
         "pymongo",
+        "pika",
         "networkx"
     ],
 )

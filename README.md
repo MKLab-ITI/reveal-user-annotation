@@ -7,7 +7,7 @@ Features
 --------
 - Twitter user annotation based on crowdsourcing Twitter lists.
 - Basic text pre-processing pipeline utilities.
-- Utility functions for integration with [MongoDB](http://www.mongodb.org/) and [PServer](http://www.pserver-project.org/)
+- Utility functions for integration with [MongoDB](http://www.mongodb.org/), [RabbitMQ](http://www.rabbitmq.com) and [PServer](http://www.pserver-project.org/)
 
 Install
 -------

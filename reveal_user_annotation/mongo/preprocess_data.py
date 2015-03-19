@@ -32,8 +32,8 @@ def read_bag_of_words_for_each_user(user_twitter_id_list, database):
     Inputs:  - user_twitter_id_list: A python list of Twitter user ids.
              - database: A Mongo database object.
 
-    Outputs: - user_twitter_id: A Twitter user id.
-             - bag_of_words: A python dictionary that maps keywords to multiplicity.
+    Yields: - user_twitter_id: A Twitter user id.
+            - bag_of_words: A python dictionary that maps keywords to multiplicity.
     """
     for user_twitter_id in user_twitter_id_list:
         collection_name = str(user_twitter_id)
@@ -69,8 +69,8 @@ def read_user_documents_for_single_user_generator(user_twitter_id, mongo_databas
     Inputs: - user_twitter_id: A Twitter user id.
             - mongo_database: A mongo database.
 
-    Yields: - user_twitter_id: A Twitter user id.
-            - twitter_lists_list: A python list containing Twitter lists in dictionary (json) format.
+    Yields: - twitter_list: A tuple containing: * A Twitter user id.
+                                                * A python list containing Twitter lists in dictionary (json) format.
     """
     collection_name = str(user_twitter_id)
     collection = mongo_database[collection_name]
@@ -150,10 +150,10 @@ def extract_graphs_and_lemmas_from_tweets(tweet_generator):
     # Prepare for iterating over tweets.
     ####################################################################################################################
     # These are initialized as lists for incremental extension.
-    tweet_id_set = list()
+    tweet_id_set = set()
     user_id_set = list()
 
-    append_tweet_id = tweet_id_set.append
+    add_tweet_id = tweet_id_set.add
     append_user_id = user_id_set.append
 
     # Initialize sparse matrix arrays
@@ -185,8 +185,11 @@ def extract_graphs_and_lemmas_from_tweets(tweet_generator):
     ####################################################################################################################
     # Iterate over tweets.
     ####################################################################################################################
+    counter = 0
     for tweet in tweet_generator:
-        append_tweet_id(tweet["id"])
+        counter += 1
+        print(counter)
+        add_tweet_id(tweet["id"])
         user_id = tweet["user"]["id"]
         graph_size = len(id_to_node)
         source_node = id_to_node.setdefault(user_id, graph_size)
@@ -198,13 +201,9 @@ def extract_graphs_and_lemmas_from_tweets(tweet_generator):
             # We are dealing with a retweet.
             original_tweet = tweet["retweeted_status"]
 
-            tweet_id_set = set(tweet_id_set)
-
             if original_tweet["id"] not in tweet_id_set:
                 # This is the first time we deal with this tweet.
-                tweet_id_set = list(tweet_id_set)
-                append_tweet_id = tweet_id_set.append
-                append_tweet_id(original_tweet["id"])
+                add_tweet_id(original_tweet["id"])
 
                 original_tweet_user_id = original_tweet["user"]["id"]
                 graph_size = len(id_to_node)
@@ -260,8 +259,7 @@ def extract_graphs_and_lemmas_from_tweets(tweet_generator):
                         append_mention_graph_row(original_tweet_node)
                         append_mention_graph_col(mentioned_node)
             else:
-                tweet_id_set = list(tweet_id_set)
-                append_tweet_id = tweet_id_set.append
+                pass
 
         else:
             # We are dealing with an original tweet.
@@ -315,7 +313,6 @@ def extract_graphs_and_lemmas_from_tweets(tweet_generator):
     # Final steps of preprocessing tweets.
     ####################################################################################################################
     # Discard any duplicates.
-    tweet_id_set = set(tweet_id_set)
     user_id_set = set(user_id_set)
     number_of_users = len(user_id_set)
     # min_number_of_users = max(user_id_set) + 1
@@ -361,6 +358,7 @@ def extract_mention_graph_from_tweets(tweet_generator):
 
     Outputs: - mention_graph: The mention graph as a SciPy sparse matrix.
              - user_id_set: A python set containing the Twitter ids for all the dataset users.
+             - node_to_id: A python dictionary that maps from node anonymized ids, to twitter user ids.
     """
     ####################################################################################################################
     # Prepare for iterating over tweets.
@@ -452,6 +450,7 @@ def extract_connected_components(graph, connectivity_type, node_to_id):
 
     Inputs:  - graph: An adjacency matrix in scipy sparse matrix format.
              - connectivity_type: A string that can be either: "strong" or "weak".
+             - node_to_id: A python dictionary that maps from node anonymized ids, to twitter user ids.
 
     Outputs: - largest_connected_component: An adjacency matrix in scipy sparse matrix format.
              - node_to_id: A map from graph node id to Twitter id, in python dictionary format.

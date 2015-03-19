@@ -27,6 +27,7 @@ def clean_single_word(word, lemmatizing="wordnet"):
 
     Inputs: - word: A string containing the source word.
             - lemmatizing: A string containing one of the following: "porter", "snowball" or "wordnet".
+
     Output: - lemma: The resulting clean lemma or stem.
     """
     if lemmatizing == "porter":
@@ -53,7 +54,7 @@ def clean_document(document, lemmatizing="wordnet"):
             - lemmatizing: A string containing one of the following: "porter", "snowball" or "wordnet".
 
     Output: - lemma_list: A python list of lemmas or stems.
-            - lemma_to_topic: A python dictionary that maps stems/lemmas to original topic keywords.
+            - lemma_to_keywordbag: A python dictionary that maps stems/lemmas to original topic keywords.
     """
     ####################################################################################################################
     # Tokenizing text
@@ -155,7 +156,8 @@ def clean_corpus_serial(corpus, lemmatizing="wordnet"):
     Inputs: - corpus: A python list of python strings. Each string is a document.
             - lemmatizing: A string containing one of the following: "porter", "snowball" or "wordnet".
 
-    Output: - list_of_bags_of_words: A li st of python dictionaries representing bags-of-words.
+    Output: - list_of_bags_of_words: A list of python dictionaries representing bags-of-words.
+            - lemma_to_keywordbag_total: Aggregated python dictionary that maps stems/lemmas to original topic keywords.
     """
     list_of_bags_of_words = list()
     append_bag_of_words = list_of_bags_of_words.append
@@ -182,6 +184,7 @@ def extract_bag_of_words_from_corpus_parallel(corpus, lemmatizing="wordnet"):
             - lemmatizing: A string containing one of the following: "porter", "snowball" or "wordnet".
 
     Output: - bag_of_words: This is a bag-of-words in python dictionary format.
+            - lemma_to_keywordbag_total: Aggregated python dictionary that maps stems/lemmas to original topic keywords.
     """
     ####################################################################################################################
     # Map and reduce document cleaning.

@@ -8,9 +8,9 @@ def combine_word_list(word_list):
     """
     Combine word list into a bag-of-words.
 
-    Input:  word_list: This is a python list of strings.
+    Input:  - word_list: This is a python list of strings.
 
-    Output: bag_of_words: This is the corresponding multi-set or bag-of-words, in the form of a python dictionary.
+    Output: - bag_of_words: This is the corresponding multi-set or bag-of-words, in the form of a python dictionary.
     """
     bag_of_words = dict()
 
@@ -27,9 +27,9 @@ def reduce_list_of_bags_of_words(list_of_keyword_sets):
     """
     Reduces a number of keyword sets to a bag-of-words.
 
-    Input:  list_of_keyword_sets: This is a python list of sets of strings.
+    Input:  - list_of_keyword_sets: This is a python list of sets of strings.
 
-    Output: bag_of_words: This is the corresponding multi-set or bag-of-words, in the form of a python dictionary.
+    Output: - bag_of_words: This is the corresponding multi-set or bag-of-words, in the form of a python dictionary.
     """
     bag_of_words = dict()
     get_bag_of_words_keys = bag_of_words.keys

@@ -24,7 +24,9 @@ def extract_user_keywords_generator(twitter_lists_gen, lemmatizing="wordnet"):
             - lemmatizing: A string containing one of the following: "porter", "snowball" or "wordnet".
 
     Yields: - user_twitter_id: A Twitter user id.
-            - bag_of_words: A python dictionary that maps keywords/lemmas to multiplicity.
+            - user_annotation: A python dictionary that contains two dicts:
+                * bag_of_lemmas: Maps emmas to multiplicity.
+                * lemma_to_keywordbag: A python dictionary that maps stems/lemmas to original topic keywords.
     """
     ####################################################################################################################
     # Extract keywords serially.
@@ -211,6 +213,14 @@ def filter_user_term_matrix(user_term_matrix, annotated_nodes, label_to_topic, m
 
 
 def form_lemma_tokeyword_map(annotated_nodes, node_to_lemma_tokeywordbag):
+    """
+    Forms the aggregated dictionary that maps lemmas/stems to the most popular topic keyword.
+
+    Inputs: - annotated_nodes: A numpy array of anonymized nodes that are annotated.
+            - node_to_lemma_tokeywordbag: A map from nodes to maps from lemmas to bags of keywords.
+
+    Output: - lemma_to_keyword: A dictionary that maps lemmas to keywords.
+    """
     # Reduce relevant lemma-to-original keyword bags.
     lemma_to_keywordbag = defaultdict(lambda: defaultdict(int))
     for node in annotated_nodes:
@@ -225,11 +235,15 @@ def form_lemma_tokeyword_map(annotated_nodes, node_to_lemma_tokeywordbag):
     return lemma_to_keyword
 
 
-def fetch_twitter_lists_for_user_ids_generator(user_id_list):
+def fetch_twitter_lists_for_user_ids_generator(twitter_app_key,
+                                               twitter_app_secret,
+                                               user_id_list):
     """
     Collects at most 500 Twitter lists for each user from an input list of Twitter user ids.
 
-    Input:  - user_id_list: A python list of Twitter user ids.
+    Inputs: - twitter_app_key: What is says on the tin.
+            - twitter_app_secret: Ditto.
+            - user_id_list: A python list of Twitter user ids.
 
     Yields: - user_twitter_id: A Twitter user id.
             - twitter_lists_list: A python list containing Twitter lists in dictionary (json) format.
@@ -237,7 +251,8 @@ def fetch_twitter_lists_for_user_ids_generator(user_id_list):
     ####################################################################################################################
     # Log into my application.
     ####################################################################################################################
-    twitter = login()
+    twitter = login(twitter_app_key,
+                    twitter_app_secret)
 
     ####################################################################################################################
     # For each user, gather at most 500 Twitter lists.
@@ -310,7 +325,7 @@ def decide_which_users_to_annotate(centrality_vector,
     return user_id_list
 
 
-def on_demand_annotation(user_twitter_id):
+def on_demand_annotation(twitter_app_key, twitter_app_secret, user_twitter_id):
     """
     A service that leverages twitter lists for on-demand annotation of popular users.
 
@@ -319,7 +334,7 @@ def on_demand_annotation(user_twitter_id):
     ####################################################################################################################
     # Log into my application
     ####################################################################################################################
-    twitter = login()
+    twitter = login(twitter_app_key, twitter_app_secret)
 
     twitter_lists_list = twitter.get_list_memberships(user_id=user_twitter_id, count=1000)
 
