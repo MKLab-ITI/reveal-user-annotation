@@ -45,21 +45,23 @@ def read_bag_of_words_for_each_user(user_twitter_id_list, database):
         yield user_twitter_id, bag_of_words
 
 
-def store_user_documents(user_document_gen, client, mongo_database_name):
+def store_user_documents(user_document_gen, client, mongo_database_name, mongo_collection_name):
     """
     Stores Twitter list objects that a Twitter user is a member of in different mongo collections.
 
     Inputs: - user_document_gen: A python generator that yields a Twitter user id and an associated document list.
             - client: A pymongo MongoClient object.
             - mongo_database_name: The name of a Mongo database as a string.
+            - mongo_collection_name: The name of the mongo collection as a string.
     """
     mongo_database = client[mongo_database_name]
+    mongo_collection = mongo_database[mongo_collection_name]
 
     # Iterate over all users to be annotated and store the Twitter lists in mongo.
     for user_twitter_id, user_document_list in user_document_gen:
-        collection_name = str(user_twitter_id)
-        collection = mongo_database[collection_name]
-        collection.insert(user_document_list)
+        document = user_document_list
+        document["_id"] = int(user_twitter_id)
+        mongo_collection.update({"_id": user_twitter_id}, document, upsert=True)
 
 
 def read_user_documents_for_single_user_generator(user_twitter_id, mongo_database):
@@ -80,25 +82,25 @@ def read_user_documents_for_single_user_generator(user_twitter_id, mongo_databas
         yield twitter_list
 
 
-def read_user_documents_generator(user_twitter_id_list, client, mongo_database_name):
+def read_user_documents_generator(user_twitter_id_list, client, mongo_database_name, mongo_collection_name):
     """
     Stores Twitter list objects that a Twitter user is a member of in different mongo collections.
 
     Inputs: - user_twitter_id_list: A python list of Twitter user ids.
             - client: A pymongo MongoClient object.
             - mongo_database_name: The name of a Mongo database as a string.
+            - mongo_collection_name: The name of the mongo collection as a string.
 
     Yields: - user_twitter_id: A Twitter user id.
             - twitter_list_gen: A python generator that yields Twitter lists in dictionary (json) format.
     """
     mongo_database = client[mongo_database_name]
-    for user_twitter_id in user_twitter_id_list:
-        collection_name = str(user_twitter_id)
-        collection = mongo_database[collection_name]
-        cursor = collection.find()
+    mongo_collection = mongo_database[mongo_collection_name]
 
-        for documents in cursor:
-            yield user_twitter_id, documents
+    cursor = mongo_collection.find({"_id": {"$in": user_twitter_id_list}})
+
+    for documents in cursor:
+        yield documents["_id"], documents
 
 
 def get_collection_documents_generator(client, database_name, collection_name, spec, latest_n, sort_key):
