@@ -4,8 +4,6 @@ try:
     import cPickle as pickle
 except ImportError:
     import pickle
-import numpy as np
-import scipy.sparse as sparse
 
 
 def get_file_row_generator(file_path, separator, encoding=None):

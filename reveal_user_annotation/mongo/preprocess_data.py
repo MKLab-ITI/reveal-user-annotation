@@ -97,7 +97,7 @@ def read_user_documents_generator(user_twitter_id_list, client, mongo_database_n
     mongo_database = client[mongo_database_name]
     mongo_collection = mongo_database[mongo_collection_name]
 
-    cursor = mongo_collection.find({"_id": {"$in": user_twitter_id_list}})
+    cursor = mongo_collection.find({"_id": {"$in": list(user_twitter_id_list)}})
 
     for documents in cursor:
         yield documents["_id"], documents
