@@ -28,7 +28,7 @@ def translate_rabbitmq_url(url):
         host_name = "localhost"
 
     if parts.port is not None:
-        port = parts.port
+        port = int(parts.port)
     else:
         port = 5672
 
