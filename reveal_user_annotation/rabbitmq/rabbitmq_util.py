@@ -1,6 +1,7 @@
 __author__ = 'Georgios Rizos (georgerizos@iti.gr)'
 
 import sys
+import subprocess
 import urllib
 from amqp import Connection, Message
 
@@ -39,12 +40,11 @@ def translate_rabbitmq_url(url):
         user_name = parts.username
         password = parts.password
 
-    if len(parts.path) <= 1:
+    path_parts = parts.path.split('/')
+    virtual_host = urllib.parse.unquote(path_parts[1])
+    virtual_host = virtual_host  # May be an empty path if URL is e.g. "amqp://guest:guest@localhost:5672/vhost"
+    if virtual_host == "":
         virtual_host = "/"  # Default vhost
-    else:
-        path_parts = parts.path.split('/')
-        virtual_host = urllib.parse.unquote(path_parts[1])
-        virtual_host = virtual_host  # May be an empty path if URL is e.g. "amqp://guest:guest@localhost:5672/vhost"
 
     return user_name, password, host_name, port, virtual_host, ssl
 
@@ -86,3 +86,7 @@ def simple_notification(connection, queue_name, exchange_name, routing_key, text
 
     message = Message(text_body)
     channel.basic_publish(message, exchange_name, routing_key)
+
+
+def rabbitmq_server_service(command):
+    subprocess.call(["service", "rabbitmq-server", command])
