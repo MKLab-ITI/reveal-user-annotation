@@ -117,3 +117,23 @@ def query_list_of_words(target_word, list_of_words, edit_distance=1):
             append_left_keyword(word)
 
     return new_list_of_words, found_list_of_words
+
+
+def simple_word_query(target_word, list_of_words, edit_distance=1):
+    found_list_of_words = list()
+    append_found_keyword = found_list_of_words.append
+
+    for word in list_of_words:
+        if len(word) > 6:
+            effective_edit_distance = edit_distance
+        else:
+            effective_edit_distance = 0  # No edit distance for small words.
+        if abs(len(word)-len(target_word)) <= effective_edit_distance:
+            if nltk.edit_distance(word, target_word) <= effective_edit_distance:
+                append_found_keyword(word)
+            else:
+                pass
+        else:
+            pass
+
+    return found_list_of_words
