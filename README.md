@@ -11,11 +11,20 @@ Includes
 
 Install
 -------
+### Required packages
+- numpy
+- scipy
+- nltk
+- twython
+- pymongo
+- celery
+- networkx
 
+### Installation
 To install for all users on Unix/Linux:
 
-    python3.x setup.py build
-    sudo python3.x setup.py install
+    python3.4 setup.py build
+    sudo python3.4 setup.py install
   
 Alternatively:
 
@@ -23,7 +32,6 @@ Alternatively:
 
 Notes
 -----
-
 ### Stopwords
 In the `.../reveal_user_annotation/text/res/stopwords/*` folder, there exist several files containing stopwords.
 
