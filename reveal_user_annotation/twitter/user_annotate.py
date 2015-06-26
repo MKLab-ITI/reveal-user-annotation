@@ -11,9 +11,11 @@ from operator import itemgetter
 from urllib.error import URLError
 from http.client import BadStatusLine
 
-from reveal_user_annotation.text.text_util import augmented_tf_idf
+from reveal_user_annotation.text.text_util import augmented_tf_idf, simple_word_query
+from reveal_user_annotation.text.clean_text import clean_single_word
 from reveal_user_annotation.twitter.twitter_util import login, safe_twitter_request_handler
 from reveal_user_annotation.twitter.clean_twitter_list import user_twitter_list_bag_of_words
+from reveal_user_annotation.twitter.manage_resources import get_reveal_set, get_topic_keyword_dictionary
 
 
 def extract_user_keywords_generator(twitter_lists_gen, lemmatizing="wordnet"):
@@ -62,7 +64,8 @@ def form_user_label_matrix(user_twitter_list_keywords_gen, id_to_node, max_numbe
              - lemma_to_keyword: A python dictionary that maps a lemma to the original keyword.
     """
     user_label_matrix, annotated_nodes, label_to_lemma, node_to_lemma_tokeywordbag = form_user_term_matrix(user_twitter_list_keywords_gen,
-                                                                                                           id_to_node)
+                                                                                                           id_to_node,
+                                                                                                           None)
 
     user_label_matrix, annotated_nodes, label_to_lemma = filter_user_term_matrix(user_label_matrix,
                                                                                  annotated_nodes,
@@ -74,12 +77,13 @@ def form_user_label_matrix(user_twitter_list_keywords_gen, id_to_node, max_numbe
     return user_label_matrix, annotated_nodes, label_to_lemma, lemma_to_keyword
 
 
-def form_user_term_matrix(user_twitter_list_keywords_gen, id_to_node):
+def form_user_term_matrix(user_twitter_list_keywords_gen, id_to_node, lemma_set=None, keyword_to_topic_manual=None):
     """
     Forms a user-term matrix.
 
     Input:   - user_twitter_list_keywords_gen: A python generator that yields a user Twitter id and a bag-of-words.
              - id_to_node:  A Twitter id to node map as a python dictionary.
+             - lemma_set: For the labelling, we use only lemmas in this set. Default: None
 
     Outputs: - user_term_matrix: A user-to-term matrix in scipy sparse matrix format.
              - annotated_nodes: A numpy array containing graph nodes.
@@ -102,20 +106,47 @@ def form_user_term_matrix(user_twitter_list_keywords_gen, id_to_node):
 
     node_to_lemma_tokeywordbag = dict()
 
+    invalid_terms = list()
+    counter = 0
+
+    if keyword_to_topic_manual is not None:
+        manual_keyword_list = list(keyword_to_topic_manual.keys())
+
     for user_twitter_id, user_annotation in user_twitter_list_keywords_gen:
+        counter += 1
+        print(counter)
         bag_of_words = user_annotation["bag_of_lemmas"]
         lemma_to_keywordbag = user_annotation["lemma_to_keywordbag"]
+
+        if lemma_set is not None:
+            bag_of_words = {lemma: multiplicity for lemma, multiplicity in bag_of_words.items() if lemma in lemma_set}
+            lemma_to_keywordbag = {lemma: keywordbag for lemma, keywordbag in lemma_to_keywordbag.items() if lemma in lemma_set}
 
         node = id_to_node[user_twitter_id]
         append_node(node)
         node_to_lemma_tokeywordbag[node] = lemma_to_keywordbag
         for term, multiplicity in bag_of_words.items():
-            vocabulary_size = len(term_to_attribute)
-            attribute = term_to_attribute.setdefault(term, vocabulary_size)
 
-            append_user_term_matrix_row(node)
-            append_user_term_matrix_col(attribute)
-            append_user_term_matrix_data(multiplicity)
+            if keyword_to_topic_manual is not None:
+                keyword_bag = lemma_to_keywordbag[term]
+                term = max(keyword_bag.keys(), key=(lambda key: keyword_bag[key]))
+
+                found_list_of_words = simple_word_query(term, manual_keyword_list, edit_distance=1)
+
+                if len(found_list_of_words) > 0:
+                    term = found_list_of_words[0]
+
+            try:
+                term = keyword_to_topic_manual[term]
+
+                vocabulary_size = len(term_to_attribute)
+                attribute = term_to_attribute.setdefault(term, vocabulary_size)
+
+                append_user_term_matrix_row(node)
+                append_user_term_matrix_col(attribute)
+                append_user_term_matrix_data(multiplicity)
+            except KeyError:
+                print(term)
 
     annotated_nodes = np.array(list(set(annotated_nodes)), dtype=np.int64)
 
@@ -129,10 +160,14 @@ def form_user_term_matrix(user_twitter_list_keywords_gen, id_to_node):
 
     label_to_topic = dict(zip(term_to_attribute.values(), term_to_attribute.keys()))
 
+    print(user_term_matrix.shape)
+    print(len(label_to_topic))
+    print(invalid_terms)
+
     return user_term_matrix, annotated_nodes, label_to_topic, node_to_lemma_tokeywordbag
 
 
-def filter_user_term_matrix(user_term_matrix, annotated_nodes, label_to_topic, max_number_of_labels):
+def filter_user_term_matrix(user_term_matrix, annotated_nodes, label_to_topic, max_number_of_labels=None):
     """
     Filters out labels that are either too rare, or have very few representatives.
 
@@ -144,17 +179,25 @@ def filter_user_term_matrix(user_term_matrix, annotated_nodes, label_to_topic, m
              - annotated_nodes: A numpy array containing graph nodes.
              - label_to_topic: A python dictionary that maps a numerical label to a string topic/keyword.
     """
-    # Eliminate zeros.
+    # Aggregate edges and eliminate zeros.
     user_term_matrix = user_term_matrix.tocsr()
     user_term_matrix.eliminate_zeros()
 
-    # If there are zero samples of a label, remove them from both the matrix and the label-to-topic map.
+    # Calculate the label-user counts.
     temp_matrix = copy.copy(user_term_matrix)
     temp_matrix.data = np.ones_like(temp_matrix.data).astype(np.int64)
     label_distribution = temp_matrix.sum(axis=0)
     index = np.argsort(np.squeeze(np.asarray(label_distribution)))
-    if index.size > max_number_of_labels:
-        index = index[:index.size-max_number_of_labels]
+
+    # Apply max number of labels cutoff.
+    if max_number_of_labels is not None:
+        if index.size > max_number_of_labels:
+            index = index[:index.size-max_number_of_labels]
+    else:
+        index = np.array(list())
+
+    # If there are zero samples of a label, remove them from both the matrix and the label-to-topic map.
+
     # percentile = 90
     # p = np.percentile(label_distribution, percentile)
     # index = np.where(label_distribution <= p)[1]
@@ -169,7 +212,7 @@ def filter_user_term_matrix(user_term_matrix, annotated_nodes, label_to_topic, m
             counter += 1
         label_to_topic = temp_map
 
-    # Perform tf-idf on all matrices
+    # Perform tf-idf on all matrices.
     user_term_matrix = augmented_tf_idf(user_term_matrix)
 
     # Most topics are heavy-tailed. For each topic, threshold to annotate.
@@ -197,7 +240,7 @@ def filter_user_term_matrix(user_term_matrix, annotated_nodes, label_to_topic, m
     temp_matrix = copy.copy(user_term_matrix)
     temp_matrix.data = np.ones_like(temp_matrix.data).astype(np.int64)
     label_distribution = temp_matrix.sum(axis=0)
-    index = np.where(label_distribution < 1)[1]
+    index = np.where(label_distribution < 31)[1]  # Fewer than 10.
     if index.shape[1] > 0:
         index = np.squeeze(np.asarray(index))
         index = np.setdiff1d(np.arange(label_distribution.size), index)
@@ -209,7 +252,46 @@ def filter_user_term_matrix(user_term_matrix, annotated_nodes, label_to_topic, m
             counter += 1
         label_to_topic = temp_map
 
+    print(user_term_matrix.shape)
+    print(len(label_to_topic))
+
     return user_term_matrix, annotated_nodes, label_to_topic
+
+
+def semi_automatic_user_annotation(user_twitter_list_keywords_gen, id_to_node):
+
+    reveal_set = get_reveal_set()
+    topic_keyword_dict = get_topic_keyword_dictionary()
+
+    available_topics = set(list(topic_keyword_dict.keys()))
+
+    keyword_list = list()
+    for topic in reveal_set:
+        if topic in available_topics:
+            keyword_list.extend(topic_keyword_dict[topic])
+
+    lemma_set = list()
+    for keyword in keyword_list:
+        lemma = clean_single_word(keyword, lemmatizing="wordnet")
+        lemma_set.append(lemma)
+    lemma_set = set(lemma_set)
+
+    keyword_topic_dict = dict()
+    for topic, keyword_set in topic_keyword_dict.items():
+        for keyword in keyword_set:
+            keyword_topic_dict[keyword] = topic
+
+    user_label_matrix, annotated_nodes, label_to_lemma, node_to_lemma_tokeywordbag = form_user_term_matrix(user_twitter_list_keywords_gen, id_to_node, lemma_set=lemma_set, keyword_to_topic_manual=keyword_topic_dict)
+
+
+    user_label_matrix, annotated_nodes, label_to_lemma = filter_user_term_matrix(user_label_matrix,
+                                                                                 annotated_nodes,
+                                                                                 label_to_lemma,
+                                                                                 max_number_of_labels=None)
+
+    lemma_to_keyword = form_lemma_tokeyword_map(annotated_nodes, node_to_lemma_tokeywordbag)
+
+    return user_label_matrix, annotated_nodes, label_to_lemma, lemma_to_keyword
 
 
 def form_lemma_tokeyword_map(annotated_nodes, node_to_lemma_tokeywordbag):

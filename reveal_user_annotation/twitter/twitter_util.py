@@ -17,34 +17,11 @@ def login(twitter_app_key,
 
     Output: - twitter: A twython twitter object, containing wrappers for the Twitter API.
     """
-    ####################################################################################################################
     # Log into my application
-    ####################################################################################################################
-    # app_key, app_secret, screen_name = get_app_credentials()
-
     twitter = Twython(twitter_app_key, twitter_app_secret)
     # auth = twitter.get_authentication_tokens(screen_name=screen_name)
 
     return twitter
-
-
-def get_app_credentials():
-    """
-    Opens the config_app_credentials.txt file and reads the credentials for a Twitter app.
-    """
-    credentials_path = get_package_path() + "/twitter/res/oauth_login/config_app_credentials.txt"
-    file_row_gen = get_file_row_generator(credentials_path, "=")
-
-    file_row = next(file_row_gen)
-    app_key = file_row[1]
-
-    file_row = next(file_row_gen)
-    app_secret = file_row[1]
-
-    file_row = next(file_row_gen)
-    screen_name = file_row[1]
-
-    return app_key, app_secret, screen_name
 
 
 def safe_twitter_request_handler(twitter_api_func,

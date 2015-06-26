@@ -113,8 +113,10 @@ def get_topic_keyword_dictionary():
     - Output: - topic_set: A topic to keyword python dictionary.
     """
     topic_keyword_dictionary = dict()
-    file_row_gen = get_file_row_generator(get_package_path() + "/twitter/res/topics/topic_keyword_mapping",
+    file_row_gen = get_file_row_generator(get_package_path() + "/twitter/res/topics/topic_keyword_mapping" + ".txt",
                                           ",",
                                           "utf-8")
     for file_row in file_row_gen:
         topic_keyword_dictionary[file_row[0]] = set([keyword for keyword in file_row[1:]])
+
+    return topic_keyword_dictionary
