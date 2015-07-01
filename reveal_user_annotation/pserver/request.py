@@ -196,3 +196,24 @@ def send_request(host_name, request):
     except Exception as e:
         print(e)
         raise e
+
+
+def update_feature_value(host_name, client_name, client_pass, feature_names):
+    """
+    TODO: This needs to be completed.
+    """
+    username = data[0]
+    feature_value = '{0:.7f}'.format(data[1])
+    joined_ftr_value = 'ftr_'+feature+'='+str(feature_value)
+    values = 'usr=%s&%s' % (username, joined_ftr_value)
+
+    # Construct request.
+    request = construct_request(model_type="pers",
+                                client_name=client_name,
+                                client_pass=client_pass,
+                                command="setusr",
+                                values=values)
+
+    # Send request.
+    send_request(host_name,
+                 request)

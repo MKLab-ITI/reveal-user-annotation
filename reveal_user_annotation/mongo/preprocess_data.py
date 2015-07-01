@@ -124,7 +124,7 @@ def get_collection_documents_generator(client, database_name, collection_name, s
         skip_n = collection.count() - latest_n
         if collection.count() - latest_n < 0:
             skip_n = 0
-        cursor = collection.find(spec=spec).sort([(sort_key, ASCENDING), ]).skip(skip_n)
+        cursor = collection.find(filter=spec).sort([(sort_key, ASCENDING), ]).skip(skip_n)
         cursor = cursor[skip_n:]
     else:
         # TODO: Why is there a problem with spec?
