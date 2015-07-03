@@ -11,7 +11,6 @@ def establish_mongo_connection(mongo_uri):
 
     Output: - A MongoDB client.
     """
-
     client = pymongo.MongoClient(mongo_uri)
     return client
 

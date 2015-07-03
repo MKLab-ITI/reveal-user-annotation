@@ -198,14 +198,14 @@ def send_request(host_name, request):
         raise e
 
 
-def update_feature_value(host_name, client_name, client_pass, feature_names):
+def update_feature_value(host_name, client_name, client_pass, user_twitter_id, feature_name, feature_score):
     """
-    TODO: This needs to be completed.
+    Updates a single topic score, for a single user.
     """
-    username = data[0]
-    feature_value = '{0:.7f}'.format(data[1])
-    joined_ftr_value = 'ftr_'+feature+'='+str(feature_value)
-    values = 'usr=%s&%s' % (username, joined_ftr_value)
+    username = str(user_twitter_id)
+    feature_value = "{0:.7f}".format(feature_score)
+    joined_ftr_value = "ftr_" + feature_name + "=" + str(feature_value)
+    values = "usr=%s&%s" % (username, joined_ftr_value)
 
     # Construct request.
     request = construct_request(model_type="pers",

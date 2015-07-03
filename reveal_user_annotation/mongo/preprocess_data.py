@@ -118,6 +118,7 @@ def get_collection_documents_generator(client, database_name, collection_name, s
     """
     mongo_database = client[database_name]
     collection = mongo_database[collection_name]
+    print(mongo_database.collection_names(include_system_collections=False))
     collection.create_index(sort_key)
 
     if latest_n is not None:

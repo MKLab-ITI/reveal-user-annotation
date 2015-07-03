@@ -38,8 +38,6 @@ def extract_all_snow_tweets_from_disk_generator(json_folder_path):
 def store_snow_tweets_from_disk_to_mongodb(snow_tweets_folder):
     """
     Store all SNOW tweets in a mongodb collection.
-
-    Try that with the daemon function and then terminate it.
     """
     client = pymongo.MongoClient("localhost", 27017)
 
