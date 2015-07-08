@@ -1,5 +1,5 @@
 include LICENCE
 include README.md
+include requirements.txt
 
-include reveal_user_annotation.config.ini
 recursive-include reveal_user_annotation *.txt

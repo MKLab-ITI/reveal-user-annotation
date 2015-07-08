@@ -46,13 +46,5 @@ setup(
     package_data={'reveal_user_annotation.text': ['res/stopwords/*.txt'],
                   'reveal_user_annotation.twitter': ['res/topics/*.txt']},
     include_package_data=False,
-    install_requires=[
-        "numpy>=1.9.2",
-        "scipy>=0.15.1",
-        "nltk>=3.0.2",
-        "twython>=3.2.0",
-        "pymongo>=3.0",
-        "celery>=3.1.17",
-        "networkx>=1.9.1"
-    ],
+    install_requires=open("requirements.txt").read().split("\n")
 )

@@ -1,0 +1,7 @@
+numpy>=1.9.2
+scipy>=0.15.1
+nltk>=3.0.2
+twython>=3.2.0
+pymongo>=3.0
+celery>=3.1.17
+networkx>=1.9.1

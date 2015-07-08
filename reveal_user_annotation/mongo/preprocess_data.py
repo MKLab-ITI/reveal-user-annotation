@@ -117,8 +117,8 @@ def get_collection_documents_generator(client, database_name, collection_name, s
     Yields: - document: A document in python dictionary (json) format.
     """
     mongo_database = client[database_name]
+    print(client, mongo_database)
     collection = mongo_database[collection_name]
-    print(mongo_database.collection_names(include_system_collections=False))
     collection.create_index(sort_key)
 
     if latest_n is not None:
@@ -128,7 +128,6 @@ def get_collection_documents_generator(client, database_name, collection_name, s
         cursor = collection.find(filter=spec).sort([(sort_key, ASCENDING), ]).skip(skip_n)
         cursor = cursor[skip_n:]
     else:
-        # TODO: Why is there a problem with spec?
         cursor = collection.find().sort([(sort_key, ASCENDING), ])
 
     for document in cursor:
@@ -403,9 +402,9 @@ def extract_graphs_and_lemmas_from_tweets(tweet_generator):
     return mention_graph, retweet_graph, user_lemma_matrix, tweet_id_set, user_id_set, node_to_id, lemma_to_attribute, id_to_name
 
 
-def extract_mention_graph_from_tweets(tweet_generator):
+def extract_graphs_from_tweets(tweet_generator):
     """
-    Given a tweet python generator, we encode the information into mention and retweet graphs and a lemma matrix.
+    Given a tweet python generator, we encode the information into mention and retweet graphs.
 
     We assume that the tweets are given in increasing timestamp.
 
@@ -429,8 +428,14 @@ def extract_mention_graph_from_tweets(tweet_generator):
     mention_graph_row = list()
     mention_graph_col = list()
 
+    retweet_graph_row = list()
+    retweet_graph_col = list()
+
     append_mention_graph_row = mention_graph_row.append
     append_mention_graph_col = mention_graph_col.append
+
+    append_retweet_graph_row = retweet_graph_row.append
+    append_retweet_graph_col = retweet_graph_col.append
 
     # Initialize dictionaries.
     id_to_node = dict()
@@ -515,6 +520,10 @@ def extract_mention_graph_from_tweets(tweet_generator):
             graph_size = len(id_to_node)
             original_tweet_node = id_to_node.setdefault(original_tweet_user_id, graph_size)
 
+            # Update retweet graph.
+            append_retweet_graph_row(source_node)
+            append_retweet_graph_col(original_tweet_node)
+
             # Get mentioned user ids.
             mentioned_user_id_set = list()
             in_reply_to_user_id = original_tweet["in_reply_to_user_id"]
@@ -584,9 +593,18 @@ def extract_mention_graph_from_tweets(tweet_generator):
                                     shape=(number_of_users, number_of_users))
     mention_graph = spsp.coo_matrix(spsp.csr_matrix(mention_graph))
 
+    # Form retweet graph adjacency matrix.
+    retweet_graph_row = np.array(retweet_graph_row, dtype=np.int64)
+    retweet_graph_col = np.array(retweet_graph_col, dtype=np.int64)
+    retweet_graph_data = np.ones_like(retweet_graph_row, dtype=np.float64)
+
+    retweet_graph = spsp.coo_matrix((retweet_graph_data, (retweet_graph_row, retweet_graph_col)),
+                                    shape=(number_of_users, number_of_users))
+    retweet_graph = spsp.coo_matrix(spsp.csr_matrix(retweet_graph))
+
     node_to_id = dict(zip(id_to_node.values(), id_to_node.keys()))
 
-    return mention_graph, user_id_set, node_to_id, id_to_name
+    return mention_graph, retweet_graph, tweet_id_set, user_id_set, node_to_id, id_to_name
 
 
 def extract_connected_components(graph, connectivity_type, node_to_id):
