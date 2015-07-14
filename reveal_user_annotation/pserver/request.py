@@ -191,10 +191,10 @@ def send_request(host_name, request):
         if result.status_code == 200:
             return result
         else:
-            print(result.status_code)
+            # print(result.status_code)
             raise Exception
     except Exception as e:
-        print(e)
+        # print(e)
         raise e
 
 
@@ -203,7 +203,7 @@ def update_feature_value(host_name, client_name, client_pass, user_twitter_id, f
     Updates a single topic score, for a single user.
     """
     username = str(user_twitter_id)
-    feature_value = "{0:.7f}".format(feature_score)
+    feature_value = "{0:.2f}".format(feature_score)
     joined_ftr_value = "ftr_" + feature_name + "=" + str(feature_value)
     values = "usr=%s&%s" % (username, joined_ftr_value)
 

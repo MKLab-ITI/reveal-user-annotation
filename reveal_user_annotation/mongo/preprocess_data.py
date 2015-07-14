@@ -107,6 +107,8 @@ def get_collection_documents_generator(client, database_name, collection_name, s
     """
     This is a python generator that yields tweets stored in a mongodb collection.
 
+    Tweet "created_at" field is assumed to have been stored in the format supported by MongoDB.
+
     Inputs: - client: A pymongo MongoClient object.
             - database_name: The name of a Mongo database as a string.
             - collection_name: The name of the tweet collection as a string.
