@@ -136,17 +136,17 @@ def form_user_term_matrix(user_twitter_list_keywords_gen, id_to_node, lemma_set=
                 if len(found_list_of_words) > 0:
                     term = found_list_of_words[0]
 
-            try:
-                term = keyword_to_topic_manual[term]
+                try:
+                    term = keyword_to_topic_manual[term]
+                except KeyError:
+                    print(term)
 
-                vocabulary_size = len(term_to_attribute)
-                attribute = term_to_attribute.setdefault(term, vocabulary_size)
+            vocabulary_size = len(term_to_attribute)
+            attribute = term_to_attribute.setdefault(term, vocabulary_size)
 
-                append_user_term_matrix_row(node)
-                append_user_term_matrix_col(attribute)
-                append_user_term_matrix_data(multiplicity)
-            except KeyError:
-                print(term)
+            append_user_term_matrix_row(node)
+            append_user_term_matrix_col(attribute)
+            append_user_term_matrix_data(multiplicity)
 
     annotated_nodes = np.array(list(set(annotated_nodes)), dtype=np.int64)
 

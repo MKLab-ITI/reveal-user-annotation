@@ -185,7 +185,7 @@ def send_request(host_name, request):
             - request: The url request.
     """
     request = "%s%s" % (host_name, request)
-    print(request)
+    # print(request)
     try:
         result = requests.get(request)
         if result.status_code == 200:
