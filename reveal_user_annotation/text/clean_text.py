@@ -59,7 +59,13 @@ def clean_document(document, lemmatizing="wordnet"):
     ####################################################################################################################
     # Tokenizing text
     ####################################################################################################################
-    tokenized_document = word_tokenize(document)
+    try:
+        tokenized_document = word_tokenize(document)
+    except LookupError:
+        print("Warning: Could not tokenize document. If these warnings are commonplace, there is a problem with the nltk resources.")
+        lemma_list = list()
+        lemma_to_keywordbag = defaultdict(lambda: defaultdict(int))
+        return lemma_list, lemma_to_keywordbag
 
     ####################################################################################################################
     # Separate ["camelCase"] into ["camel", "case"] and make every letter lower case
@@ -90,8 +96,6 @@ def clean_document(document, lemmatizing="wordnet"):
     ####################################################################################################################
     stopset = set(stopwords.words('english'))  # Make set for faster access
 
-    # TODO: Remove all test* and descr*
-
     more_stopword_files_list = os.listdir(get_package_path() + "/text/res/stopwords/")
     more_stopword_files_list = (get_package_path() + "/text/res/stopwords/" + file_name for file_name in more_stopword_files_list)
 
@@ -111,13 +115,23 @@ def clean_document(document, lemmatizing="wordnet"):
             append_word(word)
 
     ####################################################################################################################
+    # Remove words that have been created by automated list tools.
+    ####################################################################################################################
+    # TODO: This should be done either for list keywords, or with a regex test(0-9), descr(0-9).
+    tokenized_document_no_stopwords_no_autowords = list()
+    append_word = tokenized_document_no_stopwords_no_autowords.append
+    for word in tokenized_document_no_stopwords:
+        if not word.startswith(prefix=autoword_tuple):
+            append_word(word)
+
+    ####################################################################################################################
     # Stemming and Lemmatizing
     ####################################################################################################################
     lemma_to_keywordbag = defaultdict(lambda: defaultdict(int))
 
     final_doc = list()
     append_lemma = final_doc.append
-    for word in tokenized_document_no_stopwords:
+    for word in tokenized_document_no_stopwords_no_autowords:
         if lemmatizing == "porter":
             porter = PorterStemmer()
             stem = porter.stem(word)
@@ -213,6 +227,7 @@ def extract_bag_of_words_from_corpus_parallel(corpus, lemmatizing="wordnet"):
 
 first_cap_re = re.compile('(.)([A-Z][a-z]+)')
 all_cap_re = re.compile('([a-z0-9])([A-Z])')
+autoword_tuple = ("test", "descr")
 
 
 def separate_camel_case(word):
