@@ -117,12 +117,12 @@ def clean_document(document, lemmatizing="wordnet"):
     ####################################################################################################################
     # Remove words that have been created by automated list tools.
     ####################################################################################################################
-    # TODO: This should be done either for list keywords, or with a regex test(0-9), descr(0-9).
-    tokenized_document_no_stopwords_no_autowords = list()
-    append_word = tokenized_document_no_stopwords_no_autowords.append
-    for word in tokenized_document_no_stopwords:
-        if not word.startswith(prefix=autoword_tuple):
-            append_word(word)
+    # # TODO: This should be done either for list keywords, or with a regex test(0-9), descr(0-9).
+    # tokenized_document_no_stopwords_no_autowords = list()
+    # append_word = tokenized_document_no_stopwords_no_autowords.append
+    # for word in tokenized_document_no_stopwords:
+    #     if not word.startswith(prefix=autoword_tuple):
+    #         append_word(word)
 
     ####################################################################################################################
     # Stemming and Lemmatizing
@@ -131,7 +131,7 @@ def clean_document(document, lemmatizing="wordnet"):
 
     final_doc = list()
     append_lemma = final_doc.append
-    for word in tokenized_document_no_stopwords_no_autowords:
+    for word in tokenized_document_no_stopwords:
         if lemmatizing == "porter":
             porter = PorterStemmer()
             stem = porter.stem(word)

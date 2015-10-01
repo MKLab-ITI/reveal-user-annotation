@@ -77,6 +77,29 @@ def form_user_label_matrix(user_twitter_list_keywords_gen, id_to_node, max_numbe
     return user_label_matrix, annotated_nodes, label_to_lemma, lemma_to_keyword
 
 
+def write_terms_and_frequencies(path, user_term_matrix, label_to_lemma):
+    from collections import OrderedDict
+
+    bag_of_words = defaultdict(int)
+
+    matrix = sparse.coo_matrix(user_term_matrix)
+
+    for e in range(matrix.getnnz()):
+        term = matrix.col[e]
+        lemma = label_to_lemma[term]
+        multiplicity = matrix.data[e]
+
+        bag_of_words[lemma] += multiplicity
+
+    bag_of_words = dict(bag_of_words)
+    bag_of_words = OrderedDict(sorted(bag_of_words.items(), key=lambda t: t[1]))
+
+    with open(path, "w") as fp:
+        for key, value in bag_of_words.items():
+            row = str(key) + "\t" + str(value) + "\n"
+            fp.write(row)
+
+
 def form_user_term_matrix(user_twitter_list_keywords_gen, id_to_node, lemma_set=None, keyword_to_topic_manual=None):
     """
     Forms a user-term matrix.
@@ -114,7 +137,7 @@ def form_user_term_matrix(user_twitter_list_keywords_gen, id_to_node, lemma_set=
 
     for user_twitter_id, user_annotation in user_twitter_list_keywords_gen:
         counter += 1
-        print(counter)
+        # print(counter)
         bag_of_words = user_annotation["bag_of_lemmas"]
         lemma_to_keywordbag = user_annotation["lemma_to_keywordbag"]
 
@@ -160,9 +183,9 @@ def form_user_term_matrix(user_twitter_list_keywords_gen, id_to_node, lemma_set=
 
     label_to_topic = dict(zip(term_to_attribute.values(), term_to_attribute.keys()))
 
-    print(user_term_matrix.shape)
-    print(len(label_to_topic))
-    print(invalid_terms)
+    # print(user_term_matrix.shape)
+    # print(len(label_to_topic))
+    # print(invalid_terms)
 
     return user_term_matrix, annotated_nodes, label_to_topic, node_to_lemma_tokeywordbag
 
@@ -252,8 +275,8 @@ def filter_user_term_matrix(user_term_matrix, annotated_nodes, label_to_topic, m
             counter += 1
         label_to_topic = temp_map
 
-    print(user_term_matrix.shape)
-    print(len(label_to_topic))
+    # print(user_term_matrix.shape)
+    # print(len(label_to_topic))
 
     return user_term_matrix, annotated_nodes, label_to_topic
 

@@ -449,7 +449,7 @@ def extract_graphs_from_tweets(tweet_generator):
     for tweet in tweet_generator:
         # Increment tweet counter.
         counter += 1
-        print(counter)
+        # print(counter)
 
         # Extract base tweet's values.
         tweet_id = tweet["id"]

@@ -88,5 +88,10 @@ def simple_notification(connection, queue_name, exchange_name, routing_key, text
     channel.basic_publish(message, exchange_name, routing_key)
 
 
+def simpler_notification(channel, queue_name, exchange_name, routing_key, text_body):
+    message = Message(text_body)
+    channel.basic_publish(message, exchange_name, routing_key)
+
+
 def rabbitmq_server_service(command):
     subprocess.call(["service", "rabbitmq-server", command])
