@@ -67,10 +67,14 @@ def form_user_label_matrix(user_twitter_list_keywords_gen, id_to_node, max_numbe
                                                                                                            id_to_node,
                                                                                                            None)
 
+    # write_terms_and_frequencies("/home/georgerizos/Documents/term_matrix.txt", user_label_matrix, label_to_lemma)
+
     user_label_matrix, annotated_nodes, label_to_lemma = filter_user_term_matrix(user_label_matrix,
                                                                                  annotated_nodes,
                                                                                  label_to_lemma,
                                                                                  max_number_of_labels)
+
+    # write_terms_and_frequencies("/home/georgerizos/Documents/label_matrix.txt", user_label_matrix, label_to_lemma)
 
     lemma_to_keyword = form_lemma_tokeyword_map(annotated_nodes, node_to_lemma_tokeywordbag)
 
@@ -197,6 +201,7 @@ def filter_user_term_matrix(user_term_matrix, annotated_nodes, label_to_topic, m
     Inputs:  - user_term_matrix: A user-to-term matrix in scipy sparse matrix format.
              - annotated_nodes: A numpy array containing graph nodes.
              - label_to_topic: A python dictionary that maps a numerical label to a string topic/keyword.
+             - max_number_of_labels: The upper limit for the number of labels.
 
     Outputs: - user_term_matrix: The filtered user-to-term matrix in scipy sparse matrix format.
              - annotated_nodes: A numpy array containing graph nodes.
@@ -206,11 +211,17 @@ def filter_user_term_matrix(user_term_matrix, annotated_nodes, label_to_topic, m
     user_term_matrix = user_term_matrix.tocsr()
     user_term_matrix.eliminate_zeros()
 
-    # Calculate the label-user counts.
+    ####################################################################################################################
+    # Enforce max number of labels if required.
+    ####################################################################################################################
+    # Form matrix that indicates which user-label pairs are nonzero.
     temp_matrix = copy.copy(user_term_matrix)
     temp_matrix.data = np.ones_like(temp_matrix.data).astype(np.int64)
-    label_distribution = temp_matrix.sum(axis=0)
-    index = np.argsort(np.squeeze(np.asarray(label_distribution)))
+    temp_matrix.astype(np.int64)
+
+    # Calculate the label-user counts.
+    label_frequencies = temp_matrix.sum(axis=0)
+    index = np.argsort(np.squeeze(np.asarray(label_frequencies)))
 
     # Apply max number of labels cutoff.
     if max_number_of_labels is not None:
@@ -222,11 +233,11 @@ def filter_user_term_matrix(user_term_matrix, annotated_nodes, label_to_topic, m
     # If there are zero samples of a label, remove them from both the matrix and the label-to-topic map.
 
     # percentile = 90
-    # p = np.percentile(label_distribution, percentile)
-    # index = np.where(label_distribution <= p)[1]
+    # p = np.percentile(label_frequencies, percentile)
+    # index = np.where(label_frequencies <= p)[1]
     if index.size > 0:
         index = np.squeeze(np.asarray(index))
-        index = np.setdiff1d(np.arange(label_distribution.size), index)
+        index = np.setdiff1d(np.arange(label_frequencies.size), index)
         user_term_matrix = user_term_matrix[:, index]
         temp_map = dict()
         counter = 0
@@ -234,51 +245,186 @@ def filter_user_term_matrix(user_term_matrix, annotated_nodes, label_to_topic, m
             temp_map[counter] = label_to_topic[i]
             counter += 1
         label_to_topic = temp_map
+
+    # print(user_term_matrix.getnnz())
 
     # Perform tf-idf on all matrices.
     user_term_matrix = augmented_tf_idf(user_term_matrix)
 
+    ####################################################################################################################
     # Most topics are heavy-tailed. For each topic, threshold to annotate.
+    ####################################################################################################################
+    user_term_nnz = user_term_matrix.getnnz()
+    # percentile = 80
     percentile = 80
 
-    matrix_row = list()
-    matrix_col = list()
-    extend_matrix_row = matrix_row.extend
-    extend_matrix_col = matrix_col.extend
+    while True:
+        matrix_row = list()
+        matrix_col = list()
+        extend_matrix_row = matrix_row.extend
+        extend_matrix_col = matrix_col.extend
 
-    user_term_matrix = sparse.csc_matrix(user_term_matrix)
-    for topic in range(user_term_matrix.shape[1]):
-        col = user_term_matrix.getcol(topic)
-        p = np.percentile(col.data, percentile)
-        index = col.indices[col.data >= p]
-        extend_matrix_row(index)
-        extend_matrix_col(topic*np.ones_like(index))
-    matrix_row = np.array(matrix_row, dtype=np.int64)
-    matrix_col = np.array(matrix_col, dtype=np.int64)
-    matrix_data = np.ones_like(matrix_row, dtype=np.int8)
-    user_term_matrix = sparse.coo_matrix((matrix_data, (matrix_row, matrix_col)), shape=user_term_matrix.shape)
-    user_term_matrix = sparse.csr_matrix(user_term_matrix)
+        user_term_matrix = sparse.csc_matrix(user_term_matrix)
+        for topic in range(user_term_matrix.shape[1]):
+            col = user_term_matrix.getcol(topic)
+            p = np.percentile(col.data, percentile)
+            index = col.indices[col.data >= p]
+            extend_matrix_row(index)
+            extend_matrix_col(topic*np.ones_like(index))
+        matrix_row = np.array(matrix_row, dtype=np.int64)
+        matrix_col = np.array(matrix_col, dtype=np.int64)
+        matrix_data = np.ones_like(matrix_row, dtype=np.int8)
+        user_term_matrix = sparse.coo_matrix((matrix_data, (matrix_row, matrix_col)), shape=user_term_matrix.shape)
+        user_term_matrix = sparse.csr_matrix(user_term_matrix)
 
+        if user_term_matrix.getnnz() > user_term_nnz/10:
+            break
+        else:
+            percentile -= 10
+            if percentile <= 10:
+                break
+
+    # print(user_term_matrix.getnnz())
+
+    ####################################################################################################################
     # If there is a small number of samples of a label, remove them from both the matrix and the label-to-topic map.
-    temp_matrix = copy.copy(user_term_matrix)
-    temp_matrix.data = np.ones_like(temp_matrix.data).astype(np.int64)
-    label_distribution = temp_matrix.sum(axis=0)
-    index = np.where(label_distribution < 31)[1]  # Fewer than 10.
-    if index.shape[1] > 0:
-        index = np.squeeze(np.asarray(index))
-        index = np.setdiff1d(np.arange(label_distribution.size), index)
-        user_term_matrix = user_term_matrix[:, index]
-        temp_map = dict()
-        counter = 0
-        for i in index:
-            temp_map[counter] = label_to_topic[i]
-            counter += 1
-        label_to_topic = temp_map
+    ####################################################################################################################
+    user_term_nnz = user_term_matrix.getnnz()
+
+    minimum_frequency = 9
+
+    while True:
+        # Form matrix that indicates which user-label pairs are nonzero.
+        temp_matrix = copy.copy(user_term_matrix)
+        temp_matrix.data = np.ones_like(temp_matrix.data).astype(np.int64)
+        temp_matrix.astype(np.int64)
+
+        label_frequencies = temp_matrix.sum(axis=0)
+
+        # index = np.where(label_frequencies < 31)[1]  # Fewer than 10.
+        index = np.where(label_frequencies < minimum_frequency)[1]  # Fewer than 10.
+        if index.shape[1] > 0:
+            index = np.squeeze(np.asarray(index))
+            index = np.setdiff1d(np.arange(label_frequencies.size), index)
+            user_term_matrix = user_term_matrix[:, index]
+            temp_map = dict()
+            counter = 0
+            for i in index:
+                temp_map[counter] = label_to_topic[i]
+                counter += 1
+            label_to_topic = temp_map
+
+        if user_term_matrix.getnnz() > user_term_nnz/2:
+            break
+        else:
+            minimum_frequency -= 1
+            if minimum_frequency <= 1:
+                break
+
+    # print(user_term_matrix.getnnz())
 
     # print(user_term_matrix.shape)
     # print(len(label_to_topic))
 
     return user_term_matrix, annotated_nodes, label_to_topic
+
+
+# def filter_user_term_matrix(user_term_matrix, annotated_nodes, label_to_topic, max_number_of_labels=None):
+#     """
+#     Filters out labels that are either too rare, or have very few representatives.
+#
+#     Inputs:  - user_term_matrix: A user-to-term matrix in scipy sparse matrix format.
+#              - annotated_nodes: A numpy array containing graph nodes.
+#              - label_to_topic: A python dictionary that maps a numerical label to a string topic/keyword.
+#              - max_number_of_labels: The upper limit for the number of labels.
+#
+#     Outputs: - user_term_matrix: The filtered user-to-term matrix in scipy sparse matrix format.
+#              - annotated_nodes: A numpy array containing graph nodes.
+#              - label_to_topic: A python dictionary that maps a numerical label to a string topic/keyword.
+#     """
+#     # Aggregate edges and eliminate zeros.
+#     user_term_matrix = user_term_matrix.tocsr()
+#     user_term_matrix.eliminate_zeros()
+#
+#     # Form matrix that indicates which user-label pairs are nonzero.
+#     temp_matrix = copy.copy(user_term_matrix)
+#     temp_matrix.data = np.ones_like(temp_matrix.data).astype(np.int64)
+#     # temp_matrix.astype(np.int64)
+#
+#     # Calculate the label-user counts.
+#     label_frequencies = temp_matrix.sum(axis=0)
+#     index = np.argsort(np.squeeze(np.asarray(label_frequencies)))
+#
+#     # Apply max number of labels cutoff.
+#     if max_number_of_labels is not None:
+#         if index.size > max_number_of_labels:
+#             index = index[:index.size-max_number_of_labels]
+#     else:
+#         index = np.array(list())
+#
+#     # If there are zero samples of a label, remove them from both the matrix and the label-to-topic map.
+#
+#     # percentile = 90
+#     # p = np.percentile(label_frequencies, percentile)
+#     # index = np.where(label_frequencies <= p)[1]
+#     if index.size > 0:
+#         index = np.squeeze(np.asarray(index))
+#         index = np.setdiff1d(np.arange(label_frequencies.size), index)
+#         user_term_matrix = user_term_matrix[:, index]
+#         temp_map = dict()
+#         counter = 0
+#         for i in index:
+#             temp_map[counter] = label_to_topic[i]
+#             counter += 1
+#         label_to_topic = temp_map
+#
+#     # Perform tf-idf on all matrices.
+#     user_term_matrix = augmented_tf_idf(user_term_matrix)
+#
+#     # Most topics are heavy-tailed. For each topic, threshold to annotate.
+#     percentile = 80
+#
+#     matrix_row = list()
+#     matrix_col = list()
+#     extend_matrix_row = matrix_row.extend
+#     extend_matrix_col = matrix_col.extend
+#
+#     user_term_matrix = sparse.csc_matrix(user_term_matrix)
+#     for topic in range(user_term_matrix.shape[1]):
+#         col = user_term_matrix.getcol(topic)
+#         p = np.percentile(col.data, percentile)
+#         index = col.indices[col.data >= p]
+#         extend_matrix_row(index)
+#         extend_matrix_col(topic*np.ones_like(index))
+#     matrix_row = np.array(matrix_row, dtype=np.int64)
+#     matrix_col = np.array(matrix_col, dtype=np.int64)
+#     matrix_data = np.ones_like(matrix_row, dtype=np.int8)
+#     user_term_matrix = sparse.coo_matrix((matrix_data, (matrix_row, matrix_col)), shape=user_term_matrix.shape)
+#     user_term_matrix = sparse.csr_matrix(user_term_matrix)
+#
+#     # Form matrix that indicates which user-label pairs are nonzero.
+#     temp_matrix = copy.copy(user_term_matrix)
+#     temp_matrix.data = np.ones_like(temp_matrix.data).astype(np.int64)
+#     # temp_matrix.astype(np.int64)
+#
+#     # If there is a small number of samples of a label, remove them from both the matrix and the label-to-topic map.
+#     label_frequencies = temp_matrix.sum(axis=0)
+#     index = np.where(label_frequencies < 31)[1]  # Fewer than 10.
+#     if index.shape[1] > 0:
+#         index = np.squeeze(np.asarray(index))
+#         index = np.setdiff1d(np.arange(label_frequencies.size), index)
+#         user_term_matrix = user_term_matrix[:, index]
+#         temp_map = dict()
+#         counter = 0
+#         for i in index:
+#             temp_map[counter] = label_to_topic[i]
+#             counter += 1
+#         label_to_topic = temp_map
+#
+#     # print(user_term_matrix.shape)
+#     # print(len(label_to_topic))
+#
+#     return user_term_matrix, annotated_nodes, label_to_topic
 
 
 def semi_automatic_user_annotation(user_twitter_list_keywords_gen, id_to_node):
