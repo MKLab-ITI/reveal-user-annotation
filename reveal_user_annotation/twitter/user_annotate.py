@@ -153,6 +153,8 @@ def form_user_term_matrix(user_twitter_list_keywords_gen, id_to_node, lemma_set=
         append_node(node)
         node_to_lemma_tokeywordbag[node] = lemma_to_keywordbag
         for term, multiplicity in bag_of_words.items():
+            if term == "news":
+                continue
 
             if keyword_to_topic_manual is not None:
                 keyword_bag = lemma_to_keywordbag[term]
@@ -247,6 +249,7 @@ def filter_user_term_matrix(user_term_matrix, annotated_nodes, label_to_topic, m
         label_to_topic = temp_map
 
     # print(user_term_matrix.getnnz())
+    # print(user_term_matrix.shape)
 
     # Perform tf-idf on all matrices.
     user_term_matrix = augmented_tf_idf(user_term_matrix)
@@ -256,7 +259,7 @@ def filter_user_term_matrix(user_term_matrix, annotated_nodes, label_to_topic, m
     ####################################################################################################################
     user_term_nnz = user_term_matrix.getnnz()
     # percentile = 80
-    percentile = 80
+    percentile = 50
 
     while True:
         matrix_row = list()
@@ -277,7 +280,7 @@ def filter_user_term_matrix(user_term_matrix, annotated_nodes, label_to_topic, m
         user_term_matrix = sparse.coo_matrix((matrix_data, (matrix_row, matrix_col)), shape=user_term_matrix.shape)
         user_term_matrix = sparse.csr_matrix(user_term_matrix)
 
-        if user_term_matrix.getnnz() > user_term_nnz/10:
+        if (user_term_matrix.getnnz() > user_term_nnz/10) and (user_term_matrix.shape[1] > 1):
             break
         else:
             percentile -= 10
@@ -285,13 +288,14 @@ def filter_user_term_matrix(user_term_matrix, annotated_nodes, label_to_topic, m
                 break
 
     # print(user_term_matrix.getnnz())
+    # print(user_term_matrix.shape)
 
     ####################################################################################################################
     # If there is a small number of samples of a label, remove them from both the matrix and the label-to-topic map.
     ####################################################################################################################
     user_term_nnz = user_term_matrix.getnnz()
 
-    minimum_frequency = 9
+    minimum_frequency = 3
 
     while True:
         # Form matrix that indicates which user-label pairs are nonzero.
@@ -314,7 +318,7 @@ def filter_user_term_matrix(user_term_matrix, annotated_nodes, label_to_topic, m
                 counter += 1
             label_to_topic = temp_map
 
-        if user_term_matrix.getnnz() > user_term_nnz/2:
+        if (user_term_matrix.getnnz() > user_term_nnz/2) and (user_term_matrix.shape[1] > 1):
             break
         else:
             minimum_frequency -= 1
@@ -322,8 +326,8 @@ def filter_user_term_matrix(user_term_matrix, annotated_nodes, label_to_topic, m
                 break
 
     # print(user_term_matrix.getnnz())
-
     # print(user_term_matrix.shape)
+
     # print(len(label_to_topic))
 
     return user_term_matrix, annotated_nodes, label_to_topic
