@@ -421,6 +421,7 @@ def extract_graphs_from_tweets(tweet_generator):
     # These are initialized as lists for incremental extension.
     tweet_id_set = set()
     user_id_set = list()
+    twitter_to_reveal_user_id = dict()
 
     add_tweet_id = tweet_id_set.add
     append_user_id = user_id_set.append
@@ -464,6 +465,8 @@ def extract_graphs_from_tweets(tweet_generator):
         add_tweet_id(tweet_id)
         id_to_name[user_id] = user_screen_name
         append_user_id(user_id)
+
+        # twitter_to_user_id
 
         ################################################################################################################
         # We are dealing with an original tweet.
