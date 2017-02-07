@@ -3,7 +3,9 @@ __author__ = 'Georgios Rizos (georgerizos@iti.gr)'
 import sys
 import subprocess
 import urllib
+
 from amqp import Connection, Message
+from amqp.exceptions import PreconditionFailed
 
 
 if sys.version_info > (3,):
@@ -80,8 +82,14 @@ def simple_notification(connection, queue_name, exchange_name, routing_key, text
             - text_body: The text to be published.
     """
     channel = connection.channel()
-    channel.queue_declare(queue_name, durable=True)
-    channel.exchange_declare(exchange_name, type='direct', durable=True)
+    try:
+        channel.queue_declare(queue_name, durable=True, exclusive=False, auto_delete=False)
+    except PreconditionFailed:
+        pass
+    try:
+        channel.exchange_declare(exchange_name, type="fanout", durable=True, auto_delete=False)
+    except PreconditionFailed:
+        pass
     channel.queue_bind(queue_name, exchange_name, routing_key=routing_key)
 
     message = Message(text_body)

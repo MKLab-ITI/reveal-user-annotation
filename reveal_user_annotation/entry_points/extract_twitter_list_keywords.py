@@ -10,14 +10,23 @@ from reveal_user_annotation.common.config_package import get_threads_number
 from reveal_user_annotation.common.datarw import load_pickle
 from reveal_user_annotation.text.map_data import chunks
 from reveal_user_annotation.twitter.clean_twitter_list import user_twitter_list_bag_of_words
+from reveal_user_annotation.text.clean_text import get_lemmatizer, get_stopset, get_camel_case_regexes,\
+    get_digits_punctuation_whitespace_regex, get_pos_set, get_braupt_tagger, get_tokenizer
 
 
 def worker_function(file_name_list,
-                    lemmatizing,
                     source_folder,
                     target_folder):
     source_path_list = (source_folder + "/" + file_name for file_name in file_name_list)
     target_path_list = (target_folder + "/" + file_name[:-4] + ".json" for file_name in file_name_list)
+
+    sent_tokenize, _treebank_word_tokenize = get_tokenizer()
+    tagger = get_braupt_tagger()
+    lemmatizer, lemmatize = get_lemmatizer("wordnet")
+    stopset = get_stopset()
+    first_cap_re, all_cap_re = get_camel_case_regexes()
+    digits_punctuation_whitespace_re = get_digits_punctuation_whitespace_regex()
+    pos_set = get_pos_set()
 
     # Get the lists of a user
     for source_path in source_path_list:
@@ -27,7 +36,11 @@ def worker_function(file_name_list,
         else:
             continue
 
-        bag_of_lemmas, lemma_to_keywordbag = user_twitter_list_bag_of_words(twitter_lists_corpus, lemmatizing)
+        bag_of_lemmas, lemma_to_keywordbag = user_twitter_list_bag_of_words(twitter_lists_corpus,
+                                                                            sent_tokenize, _treebank_word_tokenize,
+                                                                            tagger, lemmatizer, lemmatize, stopset,
+                                                                            first_cap_re, all_cap_re, digits_punctuation_whitespace_re,
+                                                                            pos_set)
 
         user_annotation = dict()
         user_annotation["bag_of_lemmas"] = bag_of_lemmas
@@ -64,7 +77,6 @@ def main():
 
     # Extract bags of words in parallel and serialize and store in JSON format.
     pool.map(partial(worker_function,
-                     lemmatizing="wordnet",
                      source_folder=source_folder,
                      target_folder=target_folder),
              user_chunks)

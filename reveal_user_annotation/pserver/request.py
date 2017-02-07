@@ -14,8 +14,6 @@ def get_user_list(host_name, client_name, client_pass):
             - client_pass: The PServer client's password.
 
     Output: - user_id_list: A python list of user ids.
-
-    Raises: -
     """
     # Construct request.
     request = construct_request(model_type="pers",
@@ -132,7 +130,6 @@ def insert_user_data(host_name, client_name, client_pass, user_twitter_id, topic
     Inputs: - host_name: A string containing the address of the machine where the PServer instance is hosted.
             - client_name: The PServer client name.
             - client_pass: The PServer client's password.
-            - feature_names: A python list of feature names.
             - user_twitter_id: A Twitter user identifier.
             - topic_to_score: A python dictionary that maps from topic to score.
     """
@@ -201,6 +198,13 @@ def send_request(host_name, request):
 def update_feature_value(host_name, client_name, client_pass, user_twitter_id, feature_name, feature_score):
     """
     Updates a single topic score, for a single user.
+
+    Inputs: - host_name: A string containing the address of the machine where the PServer instance is hosted.
+            - client_name: The PServer client name.
+            - client_pass: The PServer client's password.
+            - user_twitter_id: A Twitter user identifier.
+            - feature_name: A specific PServer feature name.
+            - feature_score: The corresponding score.
     """
     username = str(user_twitter_id)
     feature_value = "{0:.2f}".format(feature_score)
