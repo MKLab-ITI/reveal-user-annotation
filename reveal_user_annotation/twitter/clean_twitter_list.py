@@ -6,7 +6,11 @@ from reveal_user_annotation.text.clean_text import clean_document
 from reveal_user_annotation.text.text_util import reduce_list_of_bags_of_words
 
 
-def clean_twitter_list(twitter_list, lemmatizing="wordnet"):
+def clean_twitter_list(twitter_list,
+                       sent_tokenize, _treebank_word_tokenize,
+                       tagger, lemmatizer, lemmatize, stopset,
+                       first_cap_re, all_cap_re, digits_punctuation_whitespace_re,
+                       pos_set):
     """
     Extracts the *set* of keywords found in a Twitter list (name + description).
 
@@ -17,9 +21,15 @@ def clean_twitter_list(twitter_list, lemmatizing="wordnet"):
             - lemma_to_keywordbag: A python dictionary that maps stems/lemmas to original topic keywords.
     """
     name_lemmas, name_lemma_to_keywordbag = clean_document(twitter_list["name"].replace("_", " ").replace("-", " "),
-                                                           lemmatizing=lemmatizing)
+                                                           sent_tokenize, _treebank_word_tokenize,
+                                                           tagger, lemmatizer, lemmatize, stopset,
+                                                           first_cap_re, all_cap_re, digits_punctuation_whitespace_re,
+                                                           pos_set)
     description_lemmas, description_lemma_to_keywordbag = clean_document(twitter_list["description"].replace("_", " ").replace("-", " "),
-                                                                         lemmatizing=lemmatizing)
+                                                           sent_tokenize, _treebank_word_tokenize,
+                                                           tagger, lemmatizer, lemmatize, stopset,
+                                                           first_cap_re, all_cap_re, digits_punctuation_whitespace_re,
+                                                           pos_set)
 
     keyword_set = set(name_lemmas + description_lemmas)
 
@@ -35,7 +45,11 @@ def clean_twitter_list(twitter_list, lemmatizing="wordnet"):
     return keyword_set, lemma_to_keywordbag
 
 
-def clean_list_of_twitter_list(list_of_twitter_lists, lemmatizing="wordnet"):
+def clean_list_of_twitter_list(list_of_twitter_lists,
+                               sent_tokenize, _treebank_word_tokenize,
+                               tagger, lemmatizer, lemmatize, stopset,
+                               first_cap_re, all_cap_re, digits_punctuation_whitespace_re,
+                               pos_set):
     """
     Extracts the sets of keywords for each Twitter list.
 
@@ -54,14 +68,22 @@ def clean_list_of_twitter_list(list_of_twitter_lists, lemmatizing="wordnet"):
     if list_of_twitter_lists is not None:
         for twitter_list in list_of_twitter_lists:
             if twitter_list is not None:
-                keyword_set, lemma_to_keywordbag = clean_twitter_list(twitter_list=twitter_list, lemmatizing=lemmatizing)
+                keyword_set, lemma_to_keywordbag = clean_twitter_list(twitter_list,
+                                                                      sent_tokenize, _treebank_word_tokenize,
+                                                                      tagger, lemmatizer, lemmatize, stopset,
+                                                                      first_cap_re, all_cap_re, digits_punctuation_whitespace_re,
+                                                                      pos_set)
                 append_keyword_set(keyword_set)
                 append_lemma_to_keywordbag(lemma_to_keywordbag)
 
     return list_of_keyword_sets, list_of_lemma_to_keywordbags
 
 
-def user_twitter_list_bag_of_words(twitter_list_corpus, lemmatizing="wordnet"):
+def user_twitter_list_bag_of_words(twitter_list_corpus,
+                                   sent_tokenize, _treebank_word_tokenize,
+                                   tagger, lemmatizer, lemmatize, stopset,
+                                   first_cap_re, all_cap_re, digits_punctuation_whitespace_re,
+                                   pos_set):
     """
     Extract a bag-of-words for a corpus of Twitter lists pertaining to a Twitter user.
 
@@ -73,7 +95,11 @@ def user_twitter_list_bag_of_words(twitter_list_corpus, lemmatizing="wordnet"):
     """
     # Extract a bag-of-words from a list of Twitter lists.
     # May result in empty sets
-    list_of_keyword_sets, list_of_lemma_to_keywordbags = clean_list_of_twitter_list(twitter_list_corpus, lemmatizing)
+    list_of_keyword_sets, list_of_lemma_to_keywordbags = clean_list_of_twitter_list(twitter_list_corpus,
+                                                                                    sent_tokenize, _treebank_word_tokenize,
+                                                                                    tagger, lemmatizer, lemmatize, stopset,
+                                                                                    first_cap_re, all_cap_re, digits_punctuation_whitespace_re,
+                                                                                    pos_set)
 
     # Reduce keyword sets.
     bag_of_words = reduce_list_of_bags_of_words(list_of_keyword_sets)

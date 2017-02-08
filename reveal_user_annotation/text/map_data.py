@@ -1,6 +1,8 @@
 __author__ = 'Georgios Rizos (georgerizos@iti.gr)'
 
+import itertools
 from itertools import islice, zip_longest
+
 import numpy as np
 
 
@@ -42,3 +44,15 @@ def split_every(iterable, n):  # TODO: Remove this, or make it return a generato
     while piece:
         yield piece
         piece = list(islice(i, n))
+
+
+def parallel_chunks(l, n):
+    for thread_id in range(n):
+        yield roundrobin_chunks(l, n, thread_id)
+
+
+def roundrobin_chunks(l, n, id):
+    l_c = iter(l)
+    x = list(itertools.islice(l_c, id, None, n))
+    if len(x):
+        return x

@@ -1,5 +1,7 @@
 __author__ = 'Georgios Rizos (georgerizos@iti.gr)'
 
+import collections
+
 import numpy as np
 import nltk
 
@@ -12,13 +14,10 @@ def combine_word_list(word_list):
 
     Output: - bag_of_words: This is the corresponding multi-set or bag-of-words, in the form of a python dictionary.
     """
-    bag_of_words = dict()
+    bag_of_words = collections.defaultdict(int)
 
     for word in word_list:
-        if word in bag_of_words.keys():
-            bag_of_words[word] += 1
-        else:
-            bag_of_words[word] = 1
+        bag_of_words[word] += 1
 
     return bag_of_words
 
